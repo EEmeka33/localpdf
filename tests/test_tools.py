@@ -1,0 +1,493 @@
+"""End-to-end tests: every tool is run on real files and its output is checked."""
+from __future__ import annotations
+
+import json
+import unicodedata
+import zipfile
+
+import pymupdf as fitz
+import pytest
+
+from localpdf.cli import main
+from localpdf.registry import get, load_all
+from localpdf.runner import run_tool
+from localpdf.utils import ToolError, parse_pages, which
+
+
+def run(tool_name, inputs, out=None, **opts):
+    return run_tool(get(tool_name), [str(i) for i in inputs], out, opts)
+
+
+def text_of(path) -> str:
+    return unicodedata.normalize("NFKC", "".join(p.get_text() for p in fitz.open(path)))  # NFKC: "ﬁ" → "fi"
+
+
+needs_soffice = pytest.mark.skipif(not which("soffice", "libreoffice"), reason="LibreOffice not installed")
+needs_gs = pytest.mark.skipif(not which("gs"), reason="Ghostscript not installed")
+needs_tesseract = pytest.mark.skipif(not which("tesseract"), reason="Tesseract not installed")
+
+
+# ------------------------------------------------------------------ utils
+def test_parse_pages():
+    assert parse_pages("all", 5) == [0, 1, 2, 3, 4]
+    assert parse_pages("1,3-4", 5) == [0, 2, 3]
+    assert parse_pages("3-", 5) == [2, 3, 4]
+    assert parse_pages("-2", 5) == [0, 1]
+    assert parse_pages("5-3", 5) == [4, 3, 2]
+    assert parse_pages("odd", 5) == [0, 2, 4]
+    assert parse_pages("even", 5) == [1, 3]
+    assert parse_pages("last,r2", 5) == [4, 3]
+    with pytest.raises(ToolError):
+        parse_pages("9", 5)
+
+
+def test_every_tool_has_cli_parser():
+    tools = load_all()
+    assert len(tools) >= 50
+    for name in tools:
+        with pytest.raises(SystemExit) as e:
+            main([name, "--help"])
+        assert e.value.code == 0
+
+
+# ------------------------------------------------------------------ organize
+def test_merge(samples, tmp_path):
+    out = tmp_path / "m.pdf"
+    run("merge", [samples["pdf"], samples["short"], samples["photo1.jpg"]], out)
+    doc = fitz.open(out)
+    assert doc.page_count == 6 + 3 + 1
+    assert [t[1] for t in doc.get_toc() if t[0] == 1] == ["report", "short", "photo1"]
+
+
+def test_split_modes(samples, tmp_path):
+    assert len(run("split", [samples["pdf"]], tmp_path / "a")) == 6
+    parts = run("split", [samples["pdf"]], tmp_path / "b", mode="ranges", ranges="1-2;3-6")
+    assert [fitz.open(p).page_count for p in parts] == [2, 4]
+    assert len(run("split", [samples["pdf"]], tmp_path / "c", mode="every", every=4)) == 2
+    assert len(run("split", [samples["pdf"]], tmp_path / "d", mode="bookmarks")) == 6
+    assert len(run("split", [samples["pdf"]], tmp_path / "e", mode="size", max_size=0.002)) >= 2
+
+
+def test_remove_extract_organize(samples, tmp_path):
+    out = run("remove-pages", [samples["pdf"]], tmp_path / "r.pdf", pages="2-5")[0]
+    assert fitz.open(out).page_count == 2
+    out = run("extract-pages", [samples["pdf"]], tmp_path / "x.pdf", pages="odd")[0]
+    assert fitz.open(out).page_count == 3
+    out = run("organize", [samples["pdf"]], tmp_path / "o.pdf", order="3,1,blank,2:90")[0]
+    doc = fitz.open(out)
+    assert doc.page_count == 4
+    assert "Chapter 3" in doc[0].get_text() and not doc[2].get_text().strip()
+    assert doc[3].rotation == 90
+
+
+def test_scan_to_pdf(samples, tmp_path):
+    out = run("scan-to-pdf", [samples["photo1.jpg"], samples["photo2.png"]], tmp_path / "s.pdf", mode="bw")[0]
+    assert fitz.open(out).page_count == 2
+
+
+def test_extras_organize(samples, tmp_path):
+    rev = run("reverse", [samples["pdf"]], tmp_path / "rev.pdf")[0]
+    assert "Chapter 6" in fitz.open(rev)[0].get_text()
+    inter = run("interleave", [samples["pdf"], samples["short"]], tmp_path / "i.pdf")[0]
+    assert fitz.open(inter).page_count == 9
+    assert "Short document" in fitz.open(inter)[1].get_text()
+    nup = run("n-up", [samples["pdf"]], tmp_path / "n.pdf", per_sheet="4")[0]
+    assert fitz.open(nup).page_count == 2
+    rs = run("resize", [samples["short"]], tmp_path / "rs.pdf", paper="letter")[0]
+    assert round(fitz.open(rs)[0].rect.width) == 612
+    rb = run("remove-blank", [samples["short"]], tmp_path / "rb.pdf")[0]
+    assert fitz.open(rb).page_count == 2
+    ib = run("insert-blank", [samples["short"]], tmp_path / "ib.pdf", after="1")[0]
+    assert fitz.open(ib).page_count == 4
+    bk = run("booklet", [samples["pdf"]], tmp_path / "bk.pdf")[0]
+    assert fitz.open(bk).page_count == 4  # 8 slots → 2 sheets × 2 sides
+
+
+# ------------------------------------------------------------------ optimize
+def test_compress(samples, tmp_path):
+    out = run("compress", [samples["pdf"]], tmp_path / "c.pdf", level="extreme")[0]
+    assert out.stat().st_size <= samples["pdf"].stat().st_size
+    assert "Chapter 1" in text_of(out)
+
+
+def test_repair(samples, tmp_path):
+    broken = tmp_path / "broken.pdf"
+    data = samples["pdf"].read_bytes()
+    broken.write_bytes(data[: data.rfind(b"xref")])  # chop the xref table + trailer
+    out = run("repair", [broken], tmp_path / "fixed.pdf")[0]
+    assert fitz.open(out).page_count == 6
+
+
+@needs_tesseract
+def test_ocr(samples, tmp_path):
+    assert not text_of(samples["scanned"]).strip()
+    out = run("ocr", [samples["scanned"]], tmp_path / "o.pdf")[0]
+    assert "12345" in text_of(out)
+
+
+# ------------------------------------------------------------------ convert to
+def test_jpg_to_pdf(samples, tmp_path):
+    out = run("jpg-to-pdf", [samples["photo1.jpg"], samples["photo2.png"]], tmp_path / "j.pdf", page_size="a4", margin="small")[0]
+    doc = fitz.open(out)
+    assert doc.page_count == 2 and round(doc[0].rect.width) == 595
+
+
+@needs_soffice
+@pytest.mark.parametrize("tool,key,needle", [("word-to-pdf", "docx", "Paragraph converted"),
+                                              ("excel-to-pdf", "xlsx", "Apples"),
+                                              ("powerpoint-to-pdf", "pptx", "Slide title")])
+def test_office_to_pdf(samples, tmp_path, tool, key, needle):
+    out = run(tool, [samples[key]], tmp_path / f"{key}.pdf")[0]
+    assert needle in text_of(out)
+
+
+@pytest.mark.parametrize("engine", ["auto", "weasyprint", "mupdf"])
+def test_html_file_to_pdf(samples, tmp_path, engine):
+    pytest.importorskip("weasyprint") if engine == "weasyprint" else None
+    out = run("html-to-pdf", [samples["html"]], tmp_path / f"h_{engine}.pdf", engine=engine)[0]
+    txt = text_of(out)
+    assert "Hello from a local HTML file" in txt and "Styled box" in txt
+    doc = fitz.open(out)
+    if engine != "mupdf":
+        assert doc[0].get_images(), "relative <img> should be embedded"
+
+
+def _chromium_or_skip(fn):
+    try:
+        return fn()
+    except ToolError as e:
+        if "no HTML engine" in str(e) or "Chromium" in str(e):
+            pytest.skip(f"Chromium unavailable: {e}")
+        raise
+
+
+def test_html_chromium_runs_javascript(samples, tmp_path):
+    pytest.importorskip("playwright")
+    out = _chromium_or_skip(lambda: run("html-to-pdf", [samples["html"]], tmp_path / "c.pdf", engine="chromium")[0])
+    txt = text_of(out)
+    assert "JavaScript ran" in txt and fitz.open(out)[0].get_images()
+    single = run("html-to-pdf", [samples["html"]], tmp_path / "s.pdf", engine="chromium", paper="single")[0]
+    assert fitz.open(single).page_count == 1
+
+
+def test_html_from_url(samples, tmp_path):
+    import functools
+    import http.server
+    import threading
+
+    handler = functools.partial(http.server.SimpleHTTPRequestHandler, directory=str(samples["html"].parent))
+    server = http.server.ThreadingHTTPServer(("127.0.0.1", 0), handler)
+    threading.Thread(target=server.serve_forever, daemon=True).start()
+    try:
+        url = f"http://127.0.0.1:{server.server_port}/index.html"
+        out = run_tool(get("html-to-pdf"), [url], tmp_path / "u.pdf", {})[0]
+        assert "Hello from a local HTML file" in text_of(out)
+    finally:
+        server.shutdown()
+
+
+def test_html_folder_and_zip(samples, tmp_path):
+    site = samples["html"].parent
+    out = run("html-to-pdf", [site], tmp_path / "folder.pdf")[0]
+    assert "Hello from a local HTML file" in text_of(out)
+    z = tmp_path / "site.zip"
+    with zipfile.ZipFile(z, "w") as zf:
+        for f in site.rglob("*"):
+            zf.write(f, f.relative_to(site))
+    out = run("html-to-pdf", [z], tmp_path / "zip.pdf")[0]
+    assert "Styled box" in text_of(out)
+
+
+def test_markdown_and_text(samples, tmp_path):
+    out = run("markdown-to-pdf", [samples["md"]], tmp_path / "md.pdf")[0]
+    assert "Notes" in text_of(out) and "print" in text_of(out)
+    out = run("text-to-pdf", [samples["txt"]], tmp_path / "t.pdf", line_numbers=True)[0]
+    doc = fitz.open(out)
+    assert doc.page_count > 1 and "line 199" in text_of(out)
+
+
+# ------------------------------------------------------------------ convert from
+def test_pdf_to_jpg(samples, tmp_path):
+    files = run("pdf-to-jpg", [samples["pdf"]], tmp_path / "jpg", dpi=50)
+    assert len(files) == 6 and files[0].suffix == ".jpg"
+    files = run("pdf-to-jpg", [samples["pdf"]], tmp_path / "png", format="png", pages="1")
+    assert len(files) == 1 and files[0].suffix == ".png"
+    imgs = run("pdf-to-jpg", [samples["pdf"]], tmp_path / "ext", mode="extract")
+    assert len(imgs) == 1
+
+
+def test_pdf_to_word(samples, tmp_path):
+    pytest.importorskip("pdf2docx")
+    from docx import Document
+
+    out = run("pdf-to-word", [samples["pdf"]], tmp_path / "w.docx", pages="1-2")[0]
+    text = "\n".join(p.text for p in Document(out).paragraphs)
+    assert "Chapter 1" in text
+
+
+def test_pdf_to_powerpoint(samples, tmp_path):
+    from pptx import Presentation
+
+    out = run("pdf-to-powerpoint", [samples["pdf"]], tmp_path / "p.pptx", dpi=50)[0]
+    prs = Presentation(out)
+    assert len(prs.slides) == 6
+    assert "Chapter 1" in prs.slides[0].notes_slide.notes_text_frame.text
+
+
+def test_pdf_to_excel(samples, tmp_path):
+    from openpyxl import load_workbook
+
+    out = run("pdf-to-excel", [samples["pdf"]], tmp_path / "x.xlsx", pages="2", text_fallback=False)[0]
+    wb = load_workbook(out)
+    values = [c for ws in wb for row in ws.iter_rows(values_only=True) for c in row]
+    assert "North" in values and 1350 in values and 1620 in values
+
+
+@needs_gs
+def test_pdf_to_pdfa(samples, tmp_path):
+    out = run("pdf-to-pdfa", [samples["short"]], tmp_path / "a.pdf")[0]
+    doc = fitz.open(out)
+    assert "pdfaid" in (doc.get_xml_metadata() or "")
+
+
+def test_pdf_to_text_html_md(samples, tmp_path):
+    t = run("pdf-to-text", [samples["pdf"]], tmp_path / "t.txt")[0]
+    assert "Chapter 6" in t.read_text()
+    h = run("pdf-to-html", [samples["pdf"]], tmp_path / "t.html")[0]
+    assert "Chapter" in h.read_text()
+    m = run("pdf-to-markdown", [samples["pdf"]], tmp_path / "t.md")[0]
+    assert "Chapter 1" in m.read_text()
+
+
+# ------------------------------------------------------------------ edit
+def test_rotate_batch(samples, tmp_path):
+    outs = run("rotate", [samples["pdf"], samples["short"]], tmp_path / "rot", angle="180")
+    assert len(outs) == 2 and all(fitz.open(o)[0].rotation == 180 for o in outs)
+
+
+def test_page_numbers(samples, tmp_path):
+    out = run("page-numbers", [samples["pdf"]], tmp_path / "n.pdf", format="Page {n} of {total}", pages="2-", start=1)[0]
+    doc = fitz.open(out)
+    assert "Page 1 of 5" in doc[1].get_text() and "Page" not in doc[0].get_text().replace("Chapter", "")
+
+
+def test_page_numbers_on_rotated_page(samples, tmp_path):
+    rot = run("rotate", [samples["short"]], tmp_path / "r.pdf", angle="90")[0]
+    out = run("page-numbers", [rot], tmp_path / "rn.pdf", position="bottom-right")[0]
+    page = fitz.open(out)[0]
+    words = [w for w in page.get_text("words") if w[4] == "1"]
+    assert words, "number must be present"
+    # text extraction is in unrotated coordinates – map to what the reader actually sees
+    visible = fitz.Rect(words[-1][:4]) * page.rotation_matrix
+    assert visible.x1 > page.rect.width * 0.8 and visible.y1 > page.rect.height * 0.8, "bottom-right as displayed"
+
+
+def _visible_direction(page, needle):
+    """Writing direction of `needle` as the reader sees it (text extraction is in unrotated space)."""
+    m = page.rotation_matrix
+    for b in page.get_text("dict")["blocks"]:
+        for line in b.get("lines", []):
+            if needle in "".join(s["text"] for s in line["spans"]):
+                d = fitz.Point(line["dir"]) * m - fitz.Point(0, 0) * m
+                return round(d.x, 2), round(d.y, 2)
+    raise AssertionError(f"{needle!r} not found")
+
+
+@pytest.mark.parametrize("angle", ["90", "180", "270"])
+def test_text_is_upright_on_rotated_pages(samples, tmp_path, angle):
+    rot = run("rotate", [samples["short"]], tmp_path / "r.pdf", angle=angle)[0]
+    out = run("page-numbers", [rot], tmp_path / "n.pdf", format="Page {n} of {total}")[0]
+    out = run("watermark", [out], tmp_path / "w.pdf", text="WATERMARK", rotation=0)[0]
+    out = run("sign", [out], tmp_path / "s.pdf", name="Jane Doe", page="1")[0]
+    ops = '[{"type": "text", "page": 1, "x": 72, "y": 72, "text": "EditedText"}]'
+    out = run("edit", [out], tmp_path / "e.pdf", ops=ops)[0]
+    page = fitz.open(out)[0]
+    for needle in ("Page 1 of 3", "WATERMARK", "Jane Doe", "Signed", "EditedText"):
+        assert _visible_direction(page, needle) == (1, 0), needle
+    # and it lands where asked: page number at the visible bottom, watermark centred
+    def visible(word):
+        return fitz.Rect(next(w for w in page.get_text("words") if w[4] == word)[:4]) * page.rotation_matrix
+
+    assert visible("Page").y1 > page.rect.height * 0.85
+    mark = visible("WATERMARK")
+    assert abs((mark.x0 + mark.x1) / 2 - page.rect.width / 2) < 5 and abs((mark.y0 + mark.y1) / 2 - page.rect.height / 2) < 30
+
+
+def test_watermark(samples, tmp_path):
+    out = run("watermark", [samples["pdf"]], tmp_path / "w.pdf", text="CONFIDENTIAL", position="tile")[0]
+    assert "CONFIDENTIAL" in fitz.open(out)[0].get_text()
+    out = run("watermark", [samples["pdf"]], tmp_path / "wi.pdf", image=str(samples["photo2.png"]), opacity=0.2)[0]
+    assert len(fitz.open(out)[0].get_images()) >= 1
+
+
+def test_crop(samples, tmp_path):
+    out = run("crop", [samples["pdf"]], tmp_path / "c.pdf", margins="20")[0]
+    w = fitz.open(out)[0].rect.width
+    assert abs(w - (595 - 2 * 20 * 72 / 25.4)) < 1
+    out = run("crop", [samples["short"]], tmp_path / "ca.pdf", auto=True, pages="1")[0]
+    assert fitz.open(out)[0].rect.width < 300
+
+
+def test_edit(samples, tmp_path):
+    ops = json.dumps([
+        {"type": "text", "page": 1, "x": 72, "y": 50, "text": "Inserted note", "color": "#e5322d"},
+        {"type": "rect", "page": 1, "rect": [60, 60, 200, 100], "color": "blue"},
+        {"type": "highlight", "page": "all", "search": "budget"},
+        {"type": "image", "page": 2, "rect": [300, 600, 400, 700], "file": str(samples["photo1.jpg"])},
+        {"type": "link", "page": 1, "rect": [72, 700, 200, 720], "url": "https://example.com"},
+    ])
+    out = run("edit", [samples["pdf"]], tmp_path / "e.pdf", ops=ops, find="Results", replace="Findings")[0]
+    doc = fitz.open(out)
+    assert "Inserted note" in doc[0].get_text()
+    assert "Findings" in doc[0].get_text() and "Results" not in doc[0].get_text()
+    assert any(a.type[1] == "Highlight" for a in doc[0].annots())
+    assert doc[0].get_links()[0]["uri"] == "https://example.com"
+
+
+# ------------------------------------------------------------------ security
+def test_protect_unlock(samples, tmp_path):
+    locked = run("protect", [samples["short"]], tmp_path / "l.pdf", password="s3cret", allow="print")[0]
+    doc = fitz.open(locked)
+    assert doc.needs_pass and doc.authenticate("s3cret")
+    with pytest.raises(ToolError):
+        run("unlock", [locked], tmp_path / "u0.pdf", password="wrong")
+    unlocked = run("unlock", [locked], tmp_path / "u.pdf", password="s3cret")[0]
+    assert not fitz.open(unlocked).is_encrypted
+
+
+def test_sign(samples, tmp_path):
+    out = run("sign", [samples["pdf"]], tmp_path / "s.pdf", name="Jane Doe", initials="JD")[0]
+    doc = fitz.open(out)
+    assert "Jane Doe" in doc[-1].get_text() and "Signed" in doc[-1].get_text()
+    assert "JD" in doc[0].get_text()
+    out = run("sign", [samples["short"]], tmp_path / "si.pdf", image=str(samples["signature"]), page="1", date=False)[0]
+    assert fitz.open(out)[0].get_images()
+
+
+def test_sign_with_certificate(samples, tmp_path):
+    pytest.importorskip("pyhanko")
+    from cryptography import x509
+    from cryptography.hazmat.primitives import hashes, serialization
+    from cryptography.hazmat.primitives.asymmetric import rsa
+    from cryptography.hazmat.primitives.serialization import pkcs12
+    from cryptography.x509.oid import NameOID
+    import datetime as dt
+
+    key = rsa.generate_private_key(public_exponent=65537, key_size=2048)
+    name = x509.Name([x509.NameAttribute(NameOID.COMMON_NAME, "Test Signer")])
+    now = dt.datetime.now(dt.timezone.utc)
+    cert = (x509.CertificateBuilder().subject_name(name).issuer_name(name).public_key(key.public_key())
+            .serial_number(1).not_valid_before(now).not_valid_after(now + dt.timedelta(days=1))
+            .sign(key, hashes.SHA256()))
+    p12 = tmp_path / "me.p12"
+    p12.write_bytes(pkcs12.serialize_key_and_certificates(b"me", key, cert, None,
+                                                          serialization.BestAvailableEncryption(b"pw")))
+    out = run("sign", [samples["short"]], tmp_path / "ds.pdf", name="Test Signer", cert=str(p12), cert_password="pw",
+              reason="Approval")[0]
+    from pyhanko.pdf_utils.reader import PdfFileReader
+
+    with open(out, "rb") as fh:
+        sigs = PdfFileReader(fh).embedded_signatures
+        assert len(sigs) == 1 and sigs[0].field_name == "Signature1"
+
+
+def test_redact(samples, tmp_path):
+    out = run("redact", [samples["pdf"]], tmp_path / "r.pdf", text="budget", presets="email,phone")[0]
+    txt = text_of(out)
+    assert "budget" not in txt and "alice@example.com" not in txt and "555 123" not in txt
+    assert "Chapter 1" in txt
+    assert not fitz.open(out).metadata.get("author")
+
+
+def test_compare(samples, tmp_path, capsys):
+    out = run("compare", [samples["pdf"], samples["pdf2"]], tmp_path / "cmp.pdf")[0]
+    assert fitz.open(out).page_count == 6
+    printed = capsys.readouterr().out
+    assert "revenue" in printed and "difference" in printed
+
+
+# ------------------------------------------------------------------ intelligence & extras
+def test_summarize(samples, tmp_path):
+    out = run("summarize", [samples["pdf"]], tmp_path / "s.md", length="short")[0]
+    md = out.read_text()
+    assert md.startswith("# Summary") and md.count("\n- ") >= 3
+
+
+def test_translate_needs_engine(samples, tmp_path):
+    from localpdf.tools import ai
+
+    # plug a fake translator in to exercise the layout-preserving pipeline offline
+    orig = ai._translator
+    ai._translator = lambda *a: (lambda text: text.upper())
+    try:
+        out = run("translate", [samples["short"]], tmp_path / "t.pdf", to="fr", source="en")[0]
+    finally:
+        ai._translator = orig
+    assert "SHORT DOCUMENT" in text_of(out)
+
+
+def test_info_metadata_flatten_grayscale(samples, tmp_path):
+    report = run("info", [samples["pdf"]], json=True)
+    data = json.loads(report)
+    assert data["pages"] == 6 and data["bookmarks"] == 6 and not data["looks_scanned"]
+    assert json.loads(run("info", [samples["scanned"]], json=True))["looks_scanned"]
+    m = run("metadata", [samples["pdf"]], tmp_path / "m.pdf", title="New title", author="Me")[0]
+    assert fitz.open(m).metadata["title"] == "New title"
+    m2 = run("metadata", [m], tmp_path / "m2.pdf", clear=True)[0]
+    assert not fitz.open(m2).metadata.get("author")
+    f = run("flatten", [samples["form"]], tmp_path / "f.pdf")[0]
+    assert not list(fitz.open(f)[0].widgets())
+    g = run("grayscale", [samples["pdf"]], tmp_path / "g.pdf")[0]
+    assert fitz.open(g).page_count == 6
+
+
+def test_fill_form(samples, tmp_path):
+    listing = json.loads(run("fill-form", [samples["form"]]))
+    assert set(listing) == {"name", "agree"}
+    out = run("fill-form", [samples["form"]], tmp_path / "ff.pdf", data='{"name": "Ada", "agree": true}')[0]
+    values = {w.field_name: w.field_value for w in fitz.open(out)[0].widgets()}
+    assert values["name"] == "Ada" and values["agree"] not in ("Off", False)
+
+
+def test_attachments_and_bookmarks(samples, tmp_path):
+    files = run("attachments", [samples["short"], samples["txt"]], tmp_path / "att")
+    pdf = files[0]
+    assert fitz.open(pdf).embfile_names() == ["log.txt"]
+    extracted = run("attachments", [pdf], tmp_path / "ext")
+    assert extracted[0].read_text().startswith("line 0")
+    out = run("bookmarks", [samples["short"]], tmp_path / "b.pdf", set='[[1, "Intro", 1], [1, "End", 3]]')[0]
+    assert fitz.open(out).get_toc()[1][1] == "End"
+    auto = run("bookmarks", [samples["pdf"]], tmp_path / "ba.pdf", auto=True)[0]
+    assert len(fitz.open(auto).get_toc()) == 6
+
+
+def test_cli_end_to_end(samples, tmp_path, capsys):
+    out = tmp_path / "cli.pdf"
+    assert main(["merge", str(samples["short"]), str(samples["short"]), "-o", str(out)]) == 0
+    assert fitz.open(out).page_count == 6
+    assert main(["remove-pages", str(out), "--pages", "99"]) == 1
+    assert "out of range" in capsys.readouterr().err
+
+
+def test_web_api(samples):
+    from localpdf.web import create_app
+
+    client = create_app().test_client()
+    tools = client.get("/api/tools").get_json()
+    assert len(tools["tools"]) >= 50
+    assert client.get("/").status_code == 200
+    with open(samples["short"], "rb") as a, open(samples["pdf"], "rb") as b:
+        r = client.post("/api/run/merge", data={"files": [(a, "a.pdf"), (b, "b.pdf")], "bookmarks": "true"},
+                        content_type="multipart/form-data")
+    assert r.status_code == 200 and r.mimetype == "application/pdf"
+    assert fitz.open("pdf", r.data).page_count == 9
+    with open(samples["pdf"], "rb") as a:
+        r = client.post("/api/run/split", data={"files": [(a, "a.pdf")]}, content_type="multipart/form-data")
+    assert r.mimetype == "application/zip" and len(zipfile.ZipFile(__import__("io").BytesIO(r.data)).namelist()) == 6
+    with open(samples["pdf"], "rb") as a:
+        r = client.post("/api/run/info", data={"files": [(a, "a.pdf")]}, content_type="multipart/form-data")
+    assert "pages: 6" in r.get_json()["text"]
+    with open(samples["pdf"], "rb") as a:
+        r = client.post("/api/run/remove-pages", data={"files": [(a, "a.pdf")], "pages": "77"},
+                        content_type="multipart/form-data")
+    assert r.status_code == 400 and "out of range" in r.get_json()["error"]

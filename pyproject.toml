@@ -1,0 +1,56 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "localpdf"
+version = "1.0.0"
+description = "Every iLovePDF tool – and more – running 100% locally on Linux: CLI + private web UI."
+readme = "README.md"
+requires-python = ">=3.9"
+license = { text = "AGPL-3.0-or-later" }
+keywords = ["pdf", "merge", "split", "compress", "ocr", "convert", "html-to-pdf", "watermark", "redact", "offline"]
+classifiers = [
+  "Environment :: Console",
+  "Environment :: Web Environment",
+  "Operating System :: POSIX :: Linux",
+  "Programming Language :: Python :: 3",
+  "Topic :: Office/Business",
+  "Topic :: Utilities",
+]
+dependencies = [
+  "pymupdf>=1.24.10",
+  "pikepdf>=8",
+  "pillow>=10",
+  "pdfplumber>=0.10",
+  "pdf2docx>=0.5.6",
+  "python-docx>=1.0",
+  "python-pptx>=0.6.21",
+  "openpyxl>=3.1",
+  "markdown>=3.5",
+  "flask>=3.0",
+]
+
+[project.optional-dependencies]
+html = ["playwright>=1.40", "weasyprint>=60"]
+ocr = ["ocrmypdf>=15"]
+sign = ["pyhanko>=0.21"]
+translate = ["argostranslate>=1.9"]
+extra = ["pymupdf4llm", "pillow-heif", "waitress"]
+all = ["localpdf[html,ocr,sign,extra]"]
+dev = ["pytest>=7", "ruff"]
+
+[project.scripts]
+localpdf = "localpdf.cli:main"
+
+[tool.setuptools]
+packages = ["localpdf", "localpdf.tools"]
+
+[tool.setuptools.package-data]
+localpdf = ["static/*"]
+
+[tool.ruff]
+line-length = 130
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]

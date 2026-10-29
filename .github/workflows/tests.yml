@@ -1,0 +1,30 @@
+name: tests
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python: ["3.10", "3.12"]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python }}
+      - name: System tools
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends libreoffice-writer libreoffice-calc \
+            libreoffice-impress ghostscript tesseract-ocr qpdf poppler-utils libpango-1.0-0 libpangoft2-1.0-0
+      - name: Python packages
+        run: |
+          pip install -e ".[html,sign,dev]"
+          python -m playwright install --with-deps chromium
+      - name: Lint
+        run: ruff check localpdf tests --select F,E9,B --ignore B008,B905
+      - name: Tests
+        run: pytest -q

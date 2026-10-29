@@ -1,0 +1,282 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>localpdf</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect width='32' height='32' rx='7' fill='%23e5322d'/><text x='16' y='21' font-family='Arial' font-weight='bold' font-size='11' fill='white' text-anchor='middle'>PDF</text></svg>">
+<style>
+:root {
+  --bg: #f5f5fa; --surface: #ffffff; --text: #33333b; --muted: #6b6b78; --border: #e3e3ea;
+  --accent: #e5322d; --accent-hover: #c62a25; --chip: #ececf3; --shadow: 0 1px 3px rgba(20,20,40,.08), 0 4px 14px rgba(20,20,40,.06);
+  --ok: #2e9e44; --err-bg: #fdecec; --err: #b3261e;
+}
+@media (prefers-color-scheme: dark) {
+  :root { --bg: #16161b; --surface: #202028; --text: #ececf1; --muted: #a0a0ad; --border: #33333d;
+          --chip: #2c2c36; --shadow: 0 1px 3px rgba(0,0,0,.4); --err-bg: #3a1d1d; --err: #ff8a80; }
+}
+* { box-sizing: border-box; }
+body { margin: 0; font: 15px/1.5 system-ui, -apple-system, "Segoe UI", Roboto, Ubuntu, sans-serif; background: var(--bg); color: var(--text); }
+a { color: inherit; text-decoration: none; }
+header { background: var(--surface); border-bottom: 1px solid var(--border); position: sticky; top: 0; z-index: 5; }
+.bar { max-width: 1240px; margin: 0 auto; padding: 12px 16px; display: flex; gap: 16px; align-items: center; }
+.logo { font-weight: 800; font-size: 22px; letter-spacing: -.5px; display: flex; align-items: center; gap: 8px; }
+.logo b { color: var(--accent); }
+.badge-local { font-size: 12px; font-weight: 600; color: var(--ok); border: 1px solid currentColor; border-radius: 99px; padding: 1px 9px; }
+.search { margin-left: auto; flex: 0 1 320px; }
+.search input { width: 100%; padding: 9px 14px; border-radius: 99px; border: 1px solid var(--border); background: var(--bg); color: var(--text); font: inherit; }
+main { max-width: 1240px; margin: 0 auto; padding: 24px 16px 60px; }
+.hero { text-align: center; margin: 18px 0 26px; }
+.hero h1 { font-size: clamp(24px, 4vw, 40px); margin: 0 0 6px; letter-spacing: -.5px; }
+.hero p { color: var(--muted); margin: 0; font-size: 17px; }
+.chips { display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; margin-bottom: 26px; }
+.chip { border: 0; background: var(--chip); color: var(--text); padding: 7px 15px; border-radius: 99px; cursor: pointer; font: inherit; font-size: 14px; }
+.chip.on { background: var(--text); color: var(--surface); }
+.grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 16px; }
+.card { background: var(--surface); border-radius: 12px; padding: 20px; box-shadow: var(--shadow); border: 1px solid transparent; cursor: pointer; position: relative; transition: transform .12s, border-color .12s; }
+.card:hover { transform: translateY(-2px); border-color: var(--border); }
+.card h3 { margin: 12px 0 4px; font-size: 17px; }
+.card p { margin: 0; font-size: 13.5px; color: var(--muted); }
+.icon { width: 40px; height: 40px; border-radius: 9px; display: grid; place-items: center; color: #fff; font-weight: 800; font-size: 13px; line-height: 1; }
+.icon.sym { font-size: 21px; font-weight: 400; }
+.star { position: absolute; top: 14px; right: 14px; font-size: 11px; font-weight: 700; color: #b8860b; background: #fff6d6; padding: 2px 8px; border-radius: 99px; }
+@media (prefers-color-scheme: dark) { .star { background: #3d3415; color: #ffd75e; } }
+.cat-title { grid-column: 1 / -1; margin: 18px 0 0; font-size: 13px; text-transform: uppercase; letter-spacing: .08em; color: var(--muted); }
+/* tool page */
+.back { display: inline-flex; gap: 6px; color: var(--muted); margin-bottom: 14px; cursor: pointer; }
+.tool-head { text-align: center; margin-bottom: 24px; }
+.tool-head h1 { margin: 0 0 6px; font-size: clamp(24px, 4vw, 36px); }
+.tool-head p { margin: 0 auto; max-width: 680px; color: var(--muted); font-size: 17px; }
+.layout { display: grid; grid-template-columns: 1fr 340px; gap: 20px; align-items: start; }
+@media (max-width: 860px) { .layout { grid-template-columns: 1fr; } }
+.panel { background: var(--surface); border-radius: 12px; box-shadow: var(--shadow); padding: 20px; }
+.drop { border: 2px dashed var(--border); border-radius: 12px; padding: 40px 16px; text-align: center; transition: .15s; }
+.drop.over { border-color: var(--accent); background: color-mix(in srgb, var(--accent) 6%, transparent); }
+.btn { background: var(--accent); color: #fff; border: 0; border-radius: 10px; padding: 14px 26px; font: inherit; font-weight: 700; font-size: 17px; cursor: pointer; }
+.btn:hover { background: var(--accent-hover); }
+.btn:disabled { opacity: .5; cursor: progress; }
+.btn.small { padding: 8px 16px; font-size: 14px; }
+.btn.ghost { background: var(--chip); color: var(--text); }
+.files { list-style: none; padding: 0; margin: 16px 0 0; display: grid; gap: 8px; }
+.files li { display: flex; align-items: center; gap: 10px; padding: 10px 12px; border: 1px solid var(--border); border-radius: 9px; background: var(--bg); }
+.files li[draggable] { cursor: grab; }
+.files .name { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.files .size { color: var(--muted); font-size: 13px; }
+.files button { border: 0; background: none; color: var(--muted); cursor: pointer; font-size: 16px; padding: 2px 6px; border-radius: 6px; }
+.files button:hover { background: var(--chip); color: var(--text); }
+.field { margin-bottom: 14px; }
+.field label { display: block; font-weight: 600; font-size: 14px; margin-bottom: 4px; }
+.field small { display: block; color: var(--muted); font-size: 12.5px; margin-top: 3px; white-space: pre-wrap; }
+.field input[type=text], .field input[type=number], .field select, .field textarea, .url {
+  width: 100%; padding: 9px 11px; border: 1px solid var(--border); border-radius: 8px; background: var(--bg); color: var(--text); font: inherit; font-size: 14px; }
+.field textarea { min-height: 90px; font-family: ui-monospace, monospace; font-size: 12.5px; }
+.check { display: flex; gap: 8px; align-items: center; font-weight: 600; font-size: 14px; }
+.check input { width: 18px; height: 18px; accent-color: var(--accent); }
+.run { width: 100%; margin-top: 8px; }
+.msg { margin-top: 16px; padding: 12px 14px; border-radius: 9px; }
+.msg.err { background: var(--err-bg); color: var(--err); }
+.msg.ok { background: color-mix(in srgb, var(--ok) 12%, transparent); }
+pre.out { white-space: pre-wrap; background: var(--bg); padding: 14px; border-radius: 9px; border: 1px solid var(--border); max-height: 520px; overflow: auto; font-size: 13px; }
+.or { color: var(--muted); margin: 14px 0 8px; font-size: 13px; text-transform: uppercase; letter-spacing: .08em; }
+canvas.pad { width: 100%; height: 160px; border: 1px solid var(--border); border-radius: 9px; background: #fff; touch-action: none; }
+.spinner { width: 18px; height: 18px; border: 3px solid rgba(255,255,255,.4); border-top-color: #fff; border-radius: 50%; display: inline-block; vertical-align: -3px; margin-right: 8px; animation: spin .8s linear infinite; }
+@keyframes spin { to { transform: rotate(360deg); } }
+footer { text-align: center; color: var(--muted); font-size: 13px; padding: 24px; }
+</style>
+</head>
+<body>
+<header><div class="bar">
+  <a class="logo" href="#/">local<b>pdf</b></a>
+  <span class="badge-local" title="Files are processed on this computer and never uploaded anywhere">● runs locally</span>
+  <div class="search"><input id="q" type="search" placeholder="Search tools…" autocomplete="off"></div>
+</div></header>
+<main id="app"></main>
+<footer>localpdf <span id="ver"></span> · your files never leave this machine · also on the command line: <code>localpdf --help</code></footer>
+
+<script>
+const COLORS = {"Organize PDF":"#e5322d","Optimize PDF":"#2e9e44","Convert to PDF":"#f0a30a","Convert from PDF":"#1f5fd1",
+  "Edit PDF":"#7b3fbf","PDF Security":"#2b2b33","PDF Intelligence":"#d6336c","Extras":"#0f9d9a"};
+const ICONS = {merge:"⊕", split:"✂", "remove-pages":"−", "extract-pages":"⇱", organize:"⇅", "scan-to-pdf":"⎙",
+  compress:"⇲", repair:"✚", ocr:"OCR", "jpg-to-pdf":"JPG", "word-to-pdf":"DOC", "powerpoint-to-pdf":"PPT",
+  "excel-to-pdf":"XLS", "html-to-pdf":"</>", "pdf-to-jpg":"JPG", "pdf-to-word":"DOC", "pdf-to-powerpoint":"PPT",
+  "pdf-to-excel":"XLS", "pdf-to-pdfa":"A", rotate:"↻", "page-numbers":"#", watermark:"≋", crop:"⌗", edit:"✎",
+  protect:"⚿", unlock:"⚷", sign:"✍", redact:"▇", compare:"⇆", summarize:"Σ", translate:"文A", ask:"?",
+  "pdf-to-text":"TXT", "pdf-to-html":"</>", "pdf-to-markdown":"MD", "office-to-pdf":"ODF", "markdown-to-pdf":"MD",
+  "text-to-pdf":"TXT", info:"i", metadata:"⚙", flatten:"▭", grayscale:"◐", "fill-form":"☑", attachments:"⎘",
+  bookmarks:"☰", reverse:"⇵", interleave:"⋈", "n-up":"⊞", resize:"⤢", "remove-blank":"▢", "insert-blank":"+",
+  booklet:"⧠"};
+const ICON_TEXT = t => ICONS[t.name] || t.title.slice(0, 2).toUpperCase();
+let DATA = null, filter = "All";
+const $ = (s, el = document) => el.querySelector(s);
+const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const human = n => n < 1024 ? n + " B" : n < 1048576 ? (n/1024).toFixed(1) + " KB" : (n/1048576).toFixed(1) + " MB";
+
+async function boot() {
+  DATA = await (await fetch("/api/tools")).json();
+  $("#ver").textContent = "v" + DATA.version;
+  $("#q").addEventListener("input", () => { if (location.hash.startsWith("#/tool/")) location.hash = "#/"; renderHome(); });
+  window.addEventListener("hashchange", route);
+  route();
+}
+function route() {
+  const m = location.hash.match(/^#\/tool\/([\w-]+)/);
+  m ? renderTool(m[1]) : renderHome();
+  window.scrollTo(0, 0);
+}
+function card(t) {
+  return `<a class="card" href="#/tool/${t.name}">
+    ${t.extra ? '<span class="star">★ bonus</span>' : ""}
+    <div class="icon ${ICON_TEXT(t).length === 1 ? "sym" : ""}" style="background:${COLORS[t.category]}">${esc(ICON_TEXT(t))}</div>
+    <h3>${esc(t.title)}</h3><p>${esc(t.help)}</p></a>`;
+}
+function renderHome() {
+  const q = $("#q").value.trim().toLowerCase();
+  const cats = ["All", ...DATA.categories];
+  const match = t => (!q || (t.title + " " + t.help + " " + t.name + " " + t.aliases.join(" ")).toLowerCase().includes(q))
+                     && (filter === "All" || t.category === filter);
+  let grid = "";
+  for (const c of DATA.categories) {
+    const items = DATA.tools.filter(t => t.category === c && match(t));
+    if (items.length) grid += `<h2 class="cat-title">${esc(c)}</h2>` + items.map(card).join("");
+  }
+  $("#app").innerHTML = `
+    <div class="hero"><h1>Every tool you need to work with PDFs</h1>
+    <p>Merge, split, compress, convert, rotate, unlock, sign and watermark PDFs – locally, privately, for free.</p></div>
+    <div class="chips">${cats.map(c => `<button class="chip ${c === filter ? "on" : ""}" data-c="${esc(c)}">${esc(c)}</button>`).join("")}</div>
+    <div class="grid">${grid || '<p style="grid-column:1/-1;text-align:center;color:var(--muted)">No tool matches your search.</p>'}</div>`;
+  document.querySelectorAll(".chip").forEach(b => b.onclick = () => { filter = b.dataset.c; renderHome(); });
+}
+
+function optField(o) {
+  const id = "o_" + o.name, label = o.name.replace(/_/g, " ").replace(/^./, c => c.toUpperCase());
+  const help = o.help ? `<small>${esc(o.help)}</small>` : "";
+  if (o.type === "bool")
+    return `<div class="field"><label class="check"><input type="checkbox" id="${id}" name="${o.name}" ${o.default ? "checked" : ""}> ${label}</label>${help}</div>`;
+  let input;
+  if (o.choices) input = `<select id="${id}" name="${o.name}">${o.choices.map(c => `<option ${String(c) === String(o.default) ? "selected" : ""}>${esc(c)}</option>`).join("")}</select>`;
+  else if (o.type === "text") input = `<textarea id="${id}" name="${o.name}" placeholder="${esc(o.default ?? "")}"></textarea>`;
+  else if (o.type === "file") input = `<input type="file" id="${id}" name="opt_${o.name}">`;
+  else input = `<input type="${o.type === "int" || o.type === "float" ? "number" : "text"}" ${o.type === "float" ? 'step="any"' : ""} id="${id}" name="${o.name}" value="${esc(o.default ?? "")}" ${o.required ? "required" : ""}>`;
+  return `<div class="field"><label for="${id}">${label}${o.required ? " *" : ""}</label>${input}${help}</div>`;
+}
+
+function renderTool(name) {
+  const t = DATA.tools.find(x => x.name === name);
+  if (!t) { location.hash = "#/"; return; }
+  const files = [];
+  const accept = t.accept.join(",");
+  const many = t.multiple || t.output !== "none";
+  const sigPad = t.name === "sign";
+  $("#app").innerHTML = `
+    <a class="back" href="#/">← All tools</a>
+    <div class="tool-head"><h1>${esc(t.title)}</h1><p>${esc(t.help)}</p></div>
+    <div class="layout">
+      <div class="panel">
+        <div class="drop" id="drop">
+          <button class="btn" id="pick">Select ${t.accept.includes(".pdf") || !t.accept.length ? "files" : t.accept[0].slice(1).toUpperCase() + " files"}</button>
+          <p style="color:var(--muted);margin:10px 0 0">or drop ${t.multiple ? "them" : "it"} here ${many && !t.multiple ? "(several files = batch mode)" : ""}</p>
+          <input type="file" id="file" ${many ? "multiple" : ""} accept="${esc(accept)}" hidden>
+        </div>
+        ${t.allow_url ? `<div class="or">or convert a web page</div><input class="url" id="url" type="url" placeholder="https://example.com">` : ""}
+        <ul class="files" id="list"></ul>
+        ${sigPad ? `<div class="or">or draw your signature</div><canvas class="pad" id="pad"></canvas>
+           <div style="margin-top:6px"><button class="btn small ghost" id="clear">Clear</button></div>` : ""}
+        <div id="result"></div>
+      </div>
+      <form class="panel" id="form">
+        <h3 style="margin-top:0">Options</h3>
+        ${t.opts.length ? t.opts.map(optField).join("") : '<p style="color:var(--muted)">No options – just run it.</p>'}
+        <button class="btn run" id="go" type="submit">${esc(t.title)} →</button>
+      </form>
+    </div>`;
+
+  const list = $("#list"), input = $("#file");
+  const draw = () => {
+    list.innerHTML = files.map((f, i) => `<li draggable="${t.multiple}" data-i="${i}">
+      <span>📄</span><span class="name" title="${esc(f.name)}">${esc(f.name)}</span><span class="size">${human(f.size)}</span>
+      ${t.multiple ? `<button type="button" data-a="up" title="Move up">↑</button><button type="button" data-a="down" title="Move down">↓</button>` : ""}
+      <button type="button" data-a="rm" title="Remove">✕</button></li>`).join("");
+  };
+  const add = fl => { for (const f of fl) { if (!many) files.length = 0; files.push(f); } draw(); };
+  $("#pick").onclick = () => input.click();
+  input.onchange = () => { add(input.files); input.value = ""; };
+  const drop = $("#drop");
+  drop.ondragover = e => { e.preventDefault(); drop.classList.add("over"); };
+  drop.ondragleave = () => drop.classList.remove("over");
+  drop.ondrop = e => { e.preventDefault(); drop.classList.remove("over"); add(e.dataTransfer.files); };
+  list.onclick = e => {
+    const b = e.target.closest("button"); if (!b) return;
+    const i = +b.closest("li").dataset.i;
+    if (b.dataset.a === "rm") files.splice(i, 1);
+    if (b.dataset.a === "up" && i > 0) [files[i - 1], files[i]] = [files[i], files[i - 1]];
+    if (b.dataset.a === "down" && i < files.length - 1) [files[i + 1], files[i]] = [files[i], files[i + 1]];
+    draw();
+  };
+  let dragFrom = null;
+  list.ondragstart = e => { dragFrom = +e.target.closest("li").dataset.i; };
+  list.ondragover = e => e.preventDefault();
+  list.ondrop = e => {
+    e.preventDefault(); e.stopPropagation();
+    const li = e.target.closest("li"); if (dragFrom === null || !li) return;
+    const [f] = files.splice(dragFrom, 1); files.splice(+li.dataset.i, 0, f); dragFrom = null; draw();
+  };
+
+  let padUsed = false;
+  if (sigPad) {
+    const c = $("#pad"), ctx = c.getContext("2d");
+    const fit = () => { c.width = c.clientWidth * 2; c.height = c.clientHeight * 2; ctx.scale(2, 2);
+      ctx.lineWidth = 2.4; ctx.lineCap = ctx.lineJoin = "round"; ctx.strokeStyle = "#1a2b6d"; };
+    fit();
+    let down = false;
+    const pos = e => { const r = c.getBoundingClientRect(); return [e.clientX - r.left, e.clientY - r.top]; };
+    c.onpointerdown = e => { down = true; padUsed = true; ctx.beginPath(); ctx.moveTo(...pos(e)); c.setPointerCapture(e.pointerId); };
+    c.onpointermove = e => { if (down) { ctx.lineTo(...pos(e)); ctx.stroke(); } };
+    c.onpointerup = () => down = false;
+    $("#clear").onclick = () => { ctx.clearRect(0, 0, c.width, c.height); padUsed = false; };
+  }
+
+  $("#form").onsubmit = async e => {
+    e.preventDefault();
+    const res = $("#result"), go = $("#go");
+    const url = $("#url")?.value.trim();
+    if (files.length < t.min_inputs && !url) {
+      res.innerHTML = `<div class="msg err">Please add ${t.min_inputs > 1 ? "at least " + t.min_inputs + " files" : "a file"}${t.allow_url ? " or a URL" : ""}.</div>`;
+      return;
+    }
+    const fd = new FormData($("#form"));
+    t.opts.filter(o => o.type === "bool").forEach(o => fd.set(o.name, $("#o_" + o.name).checked));
+    files.forEach(f => fd.append("files", f, f.name));
+    if (url) fd.set("url", url);
+    if (sigPad && padUsed && !$("#o_image").files.length) {
+      const blob = await new Promise(r => $("#pad").toBlob(r, "image/png"));
+      fd.set("opt_image", blob, "signature.png");
+    }
+    go.disabled = true; go.innerHTML = `<span class="spinner"></span>Working…`;
+    res.innerHTML = "";
+    try {
+      const r = await fetch("/api/run/" + t.name, {method: "POST", body: fd});
+      const type = r.headers.get("Content-Type") || "";
+      if (type.includes("application/json")) {
+        const j = await r.json();
+        res.innerHTML = j.error ? `<div class="msg err">⚠ ${esc(j.error)}</div>` : `<pre class="out">${esc(j.text)}</pre>`;
+      } else {
+        const blob = await r.blob();
+        const name = (r.headers.get("Content-Disposition") || "").match(/filename\*?=(?:UTF-8'')?"?([^";]+)/)?.[1] || "result";
+        const href = URL.createObjectURL(blob);
+        const fname = decodeURIComponent(name);
+        res.innerHTML = `<div class="msg ok">✔ Done – <b>${esc(fname)}</b> (${human(blob.size)})
+          <div style="margin-top:10px;display:flex;gap:8px;flex-wrap:wrap"><a class="btn small" href="${href}" download="${esc(fname)}">Download</a>
+          ${blob.type === "application/pdf" ? `<a class="btn small ghost" href="${href}" target="_blank">Open</a>` : ""}</div></div>`;
+        const a = document.createElement("a"); a.href = href; a.download = fname; a.click();
+      }
+    } catch (err) {
+      res.innerHTML = `<div class="msg err">⚠ ${esc(err)}</div>`;
+    } finally {
+      go.disabled = false; go.textContent = t.title + " →";
+    }
+  };
+}
+boot();
+</script>
+</body>
+</html>
