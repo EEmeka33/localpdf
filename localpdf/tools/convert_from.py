@@ -8,7 +8,10 @@ from pathlib import Path
 import pymupdf as fitz
 
 from ..registry import Opt, tool
-from ..utils import ToolError, ensure_dir, ghostscript, open_pdf, parse_pages, run, soffice_convert, tempdir, which
+from ..tables import page_layout
+from ..utils import (
+    ToolError, ensure_dir, ghostscript, open_pdf, parse_pages, reading_order, run, soffice_convert, tempdir, which,
+)
 
 
 @tool(
@@ -75,9 +78,11 @@ def pdf_to_jpg(inputs, output: Path, mode="pages", format="jpg", dpi=150, pages=
         Opt("engine", "choice", "auto", "Converter: pdf2docx (best layout) or LibreOffice.", ["auto", "pdf2docx", "libreoffice"]),
         Opt("pages", "str", "all", "Pages to convert."),
         Opt("format", "choice", "docx", "Output format.", ["docx", "odt", "rtf", "doc"]),
+        Opt("tables", "choice", "auto", "Borderless-table detection. It can take minutes per page on dense multi-column "
+            "text, so 'auto' gives it 8 s per page and otherwise converts without it.", ["auto", "on", "off"]),
     ],
 )
-def pdf_to_word(inputs, output: Path, engine="auto", pages="all", format="docx"):
+def pdf_to_word(inputs, output: Path, engine="auto", pages="all", format="docx", tables="auto"):
     src = Path(inputs[0])
     with tempdir() as tmp:
         if pages != "all":
@@ -89,17 +94,18 @@ def pdf_to_word(inputs, output: Path, engine="auto", pages="all", format="docx")
         done = False
         if engine in ("auto", "pdf2docx"):
             try:
-                from pdf2docx import Converter
+                import pdf2docx  # noqa: F401
             except ImportError:
                 if engine == "pdf2docx":
                     raise ToolError("pip install pdf2docx") from None
             else:
-                import logging
-
-                logging.getLogger().setLevel(logging.ERROR)
-                cv = Converter(str(src))
-                cv.convert(str(docx_path), multi_processing=False)
-                cv.close()
+                if tables == "auto":
+                    budget = 8 * fitz.open(src).page_count + 5
+                    if not _pdf2docx_with_timeout(src, docx_path, budget):
+                        print(f"(borderless-table detection exceeded {budget}s – converting without it)")
+                        _pdf2docx(src, docx_path, False)
+                else:
+                    _pdf2docx(src, docx_path, tables == "on")
                 done = True
         if not done:
             docx_path = soffice_convert(src, tmp, "docx:MS Word 2007 XML", infilter="writer_pdf_import")
@@ -108,6 +114,36 @@ def pdf_to_word(inputs, output: Path, engine="auto", pages="all", format="docx")
         output.parent.mkdir(parents=True, exist_ok=True)
         shutil.move(docx_path, output)
     return [output]
+
+
+def _pdf2docx(src: Path, target: Path, stream_tables: bool) -> None:
+    import logging
+
+    from pdf2docx import Converter
+
+    logging.getLogger().setLevel(logging.ERROR)
+    cv = Converter(str(src))
+    try:
+        cv.convert(str(target), multi_processing=False, parse_stream_table=stream_tables)
+    finally:
+        cv.close()
+
+
+def _pdf2docx_with_timeout(src: Path, target: Path, seconds: float) -> bool:
+    """Full-quality conversion in a child process that is killed if it runs over budget."""
+    import multiprocessing as mp
+
+    proc = mp.get_context("fork").Process(target=_pdf2docx, args=(src, target, True))
+    proc.start()
+    proc.join(seconds)
+    if proc.is_alive():
+        proc.kill()
+        proc.join()
+        target.unlink(missing_ok=True)
+        return False
+    if proc.exitcode != 0 or not target.exists():
+        raise ToolError("pdf2docx failed on this file – try --engine libreoffice")
+    return True
 
 
 @tool(
@@ -153,89 +189,107 @@ def pdf_to_powerpoint(inputs, output: Path, mode="image", dpi=200):
     help="Pull data straight from PDFs into Excel spreadsheets – tables are detected automatically.",
     aliases=("pdf-to-xlsx",), output="xlsx",
     opts=[
-        Opt("layout", "choice", "sheet-per-table", "Where tables go.", ["sheet-per-table", "sheet-per-page", "single-sheet"]),
-        Opt("pages", "str", "all", "Pages to scan for tables."),
-        Opt("text_fallback", "bool", True, "Pages without detectable tables: export their text lines, split into columns."),
+        Opt("layout", "choice", "sheet-per-page", "One sheet per page (tables + text in reading order), every table on "
+            "its own sheet (tables only), or everything on one sheet.", ["sheet-per-page", "sheet-per-table", "single-sheet"]),
+        Opt("pages", "str", "all", "Pages to convert."),
+        Opt("text", "bool", True, "Also export the text around tables (titles, notes) – ignored for sheet-per-table."),
     ],
 )
-def pdf_to_excel(inputs, output: Path, layout="sheet-per-table", pages="all", text_fallback=True):
+def pdf_to_excel(inputs, output: Path, layout="sheet-per-page", pages="all", text=True):
     from openpyxl import Workbook
-    from openpyxl.styles import Font
 
     doc = open_pdf(inputs[0])
     wb = Workbook()
     wb.remove(wb.active)
     single = wb.create_sheet("Data") if layout == "single-sheet" else None
-    found = 0
-    try:
-        import pdfplumber
-
-        plumber = pdfplumber.open(inputs[0])
-    except ImportError:
-        plumber = None
+    tables_found = 0
     for pno in parse_pages(pages, doc.page_count):
-        page = doc[pno]
-        tables = _plumber_tables(plumber, pno)
-        if not tables:
-            try:
-                tables = [t.extract() for t in page.find_tables().tables]
-            except Exception:  # noqa: BLE001
-                tables = []
-        if not tables and text_fallback:
-            rows = [_split_columns(line) for line in page.get_text().splitlines() if line.strip()]
-            tables = [rows] if rows else []
-        if layout == "sheet-per-page" and tables:
-            ws = wb.create_sheet(f"Page {pno + 1}")
-        for ti, rows in enumerate(tables, 1):
-            found += 1
-            if single is not None:
-                ws = single
-            elif layout == "sheet-per-table":
-                ws = wb.create_sheet(f"P{pno + 1} T{ti}"[:31])
-            if ws.max_row > 1:
-                ws.append([])
-            for r, row in enumerate(rows):
-                ws.append([_number(c) for c in row])
-                if r == 0:
-                    for cell in ws[ws.max_row]:
-                        cell.font = Font(bold=True)
-            for col in ws.columns:
-                ws.column_dimensions[col[0].column_letter].width = min(60, max(8, *(len(str(c.value or "")) + 2 for c in col)))
-    if plumber is not None:
-        plumber.close()
-    if not found:
+        items = page_layout(doc[pno])
+        tables_found += sum(1 for kind, _ in items if kind == "table")
+        if layout == "sheet-per-table":
+            for ti, rows in enumerate((r for k, r in items if k == "table"), 1):
+                _write_items(wb.create_sheet(f"P{pno + 1} T{ti}"[:31]), [("table", rows)])
+            continue
+        if not text:
+            items = [it for it in items if it[0] == "table"]
+        if items:
+            _write_items(single or wb.create_sheet(f"Page {pno + 1}"), items)
+    if not wb.sheetnames:  # sheet-per-table on a document without tables: keep its text
+        for pno in parse_pages(pages, doc.page_count):
+            items = [it for it in page_layout(doc[pno]) if it[0] == "text"]
+            if items:
+                _write_items(wb.create_sheet(f"Page {pno + 1}"), items)
+    if not wb.sheetnames or all(ws.max_row <= 1 and ws["A1"].value is None for ws in wb):
         raise ToolError("no tables or text found (scanned PDF? run `localpdf ocr` first)")
+    print(f"{tables_found} table(s) detected")
     output.parent.mkdir(parents=True, exist_ok=True)
     wb.save(output)
     return [output]
 
 
-def _plumber_tables(plumber, pno):
-    """pdfplumber keeps cell text intact (e.g. '1,500') better than MuPDF's table finder."""
-    if plumber is None:
-        return []
-    return [t for t in plumber.pages[pno].extract_tables() if t]
+def _write_items(ws, items):
+    """Append tables (bold header, typed numbers) and text lines (grey italics) to a worksheet."""
+    from openpyxl.styles import Font
+    from openpyxl.utils import get_column_letter
+
+    widths: dict[int, int] = {}
+    prev = None
+    for kind, content in items:
+        if ws.max_row > 1 and (kind == "table" or prev == "table"):
+            ws.append([])  # blank row around tables
+        if kind == "text":
+            ws.append([content])
+            ws.cell(ws.max_row, 1).font = Font(italic=True, color="555555")
+        else:
+            for r, row in enumerate(content):
+                parsed = [_number(c) for c in row]
+                ws.append([v for v, _ in parsed])
+                for col, (cell, (_, fmt)) in enumerate(zip(ws[ws.max_row], parsed), 1):
+                    if fmt:
+                        cell.number_format = fmt
+                    if r == 0:
+                        cell.font = Font(bold=True)
+                    widths[col] = max(widths.get(col, 8), min(60, len(str(row[col - 1] or "")) + 2))
+        prev = kind
+    for col, w in widths.items():  # several pages can share a sheet: only ever widen
+        dim = ws.column_dimensions[get_column_letter(col)]
+        dim.width = max(w, dim.width or 0)
 
 
-def _split_columns(line: str) -> list[str]:
-    import re
-
-    return [c for c in re.split(r"\s{2,}|\t", line.strip()) if c != ""]
+_NUM = r"\d{1,3}(?:[,\u00a0\u202f ]\d{3})+(?:\.\d+)?|(?:0|[1-9]\d*)(?:\.\d+)?"  # 1,234 / 1 234 / 1234.5
+_CURRENCY = "$€£¥₹"
 
 
 def _number(value):
-    """Turn numeric-looking cells into numbers; IDs with leading zeros stay text."""
+    """Numeric-looking cell → (number, Excel format); anything else → (text, None).
+
+    Handles thousands separators, percentages, currency symbols and accounting negatives
+    "(1,234.00)". IDs with leading zeros ("007") stay text.
+    """
     import re
 
     if value is None:
-        return None
+        return None, None
     s = str(value).strip()
-    t = s.replace(",", "") if re.fullmatch(r"-?\d{1,3}(,\d{3})+(\.\d+)?", s) else s
-    if re.fullmatch(r"-?(0|[1-9]\d*)", t):
-        return int(t)
-    if re.fullmatch(r"-?(0|[1-9]\d*)\.\d+", t):
-        return float(t)
-    return s
+    if not s:
+        return None, None
+    m = re.fullmatch(rf"(\(?)(-?)\s*([{_CURRENCY}]?)\s*({_NUM})\s*([{_CURRENCY}%]?)(\)?)", s)
+    if not m or bool(m.group(1)) != bool(m.group(6)):
+        return s, None
+    paren, minus, pre, num, post, _ = m.groups()
+    v = float(re.sub(r"[,\u00a0\u202f ]", "", num))
+    if paren or minus:
+        v = -v
+    decimals = len(num.split(".")[1]) if "." in num else 0
+    base = ("#,##0" if re.search(r"[,\u00a0\u202f ]", num) else "0") + ("." + "0" * decimals if decimals else "")
+    if post == "%":
+        return round(v / 100, decimals + 2), "0" + ("." + "0" * decimals if decimals else "") + "%"
+    if pre or post:
+        sym = pre or post
+        return v, f'"{sym}"{base}' if pre else f'{base} "{sym}"'
+    if decimals == 0 and base == "0":
+        return int(v), None
+    return (int(v) if decimals == 0 else v), base
 
 
 @tool(
@@ -309,7 +363,7 @@ def pdf_to_text(inputs, output: Path, layout=False, pages="all"):
             res = run([which("pdftotext"), "-layout", "-f", pno + 1, "-l", pno + 1, inputs[0], "-"])
             parts.append(res.stdout)
         else:
-            parts.append(page.get_text(sort=True))
+            parts.append("\n".join(reading_order(page)))
     output.parent.mkdir(parents=True, exist_ok=True)
     output.write_text("\f".join(parts), encoding="utf-8")
     return [output]
@@ -326,7 +380,8 @@ def pdf_to_html(inputs, output: Path):
     title = doc.metadata.get("title") or Path(inputs[0]).stem
     html = f"""<!doctype html><html><head><meta charset="utf-8"><title>{title}</title>
 <style>body{{background:#eee;margin:0;padding:20px}} .page{{margin:0 auto 20px;width:fit-content;box-shadow:0 2px 8px #0003}}
-.page>div{{background:#fff}}</style></head><body>{pages}</body></html>"""
+.page>div{{background:#fff;position:relative;overflow:hidden}} .page p{{position:absolute;white-space:pre;margin:0}}
+.page img{{position:absolute}}</style></head><body>{pages}</body></html>"""
     output.write_text(html, encoding="utf-8")
     return [output]
 
@@ -340,7 +395,10 @@ def pdf_to_markdown(inputs, output: Path):
     try:
         import pymupdf4llm  # type: ignore
 
-        md = pymupdf4llm.to_markdown(inputs[0])
+        try:  # pymupdf4llm ≥ 1.x layout engine: no OCR here (that's the `ocr` tool), drop running headers/footers
+            md = pymupdf4llm.to_markdown(inputs[0], use_ocr=False, header=False, footer=False, show_progress=False)
+        except TypeError:
+            md = pymupdf4llm.to_markdown(inputs[0])
     except ImportError:
         md = _simple_markdown(open_pdf(inputs[0]))
     output.write_text(md, encoding="utf-8")

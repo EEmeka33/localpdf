@@ -228,6 +228,39 @@ def load_json_arg(value: str):
         raise ToolError(f"invalid JSON: {e}") from None
 
 
+def reading_order(page) -> list[str]:
+    """Text blocks of a page in reading order (multi-column aware), using a recursive XY-cut.
+
+    The region is split at a vertical gutter that no block crosses (columns, read left to right)
+    and otherwise at a horizontal gap (bands, read top to bottom); unsplittable regions are read
+    top-to-bottom. Content-stream order and naive y-sorting both fail on many multi-column PDFs.
+    """
+    blocks = [b for b in page.get_text("blocks") if b[6] == 0 and b[4].strip()]
+
+    def cut(items, axis):
+        lo, hi = (0, 2) if axis == "x" else (1, 3)
+        items = sorted(items, key=lambda b: b[lo])
+        groups, end = [[items[0]]], items[0][hi]
+        for b in items[1:]:
+            if b[lo] > end + 1:  # a gap nothing crosses
+                groups.append([b])
+            else:
+                groups[-1].append(b)
+            end = max(end, b[hi])
+        return groups
+
+    def order(items):
+        if len(items) <= 1:
+            return items
+        for axis in ("x", "y"):
+            groups = cut(items, axis)
+            if len(groups) > 1:
+                return [b for g in groups for b in order(g)]
+        return sorted(items, key=lambda b: (b[1], b[0]))
+
+    return [b[4] for b in order(blocks)]
+
+
 def as_path_list(inputs: Iterable[str]) -> list[Path]:
     paths = [Path(i) for i in inputs]
     for p in paths:

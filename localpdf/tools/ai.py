@@ -19,7 +19,7 @@ from pathlib import Path
 import pymupdf as fitz
 
 from ..registry import Opt, tool
-from ..utils import ToolError, open_pdf, parse_pages, save_pdf
+from ..utils import ToolError, open_pdf, parse_pages, reading_order, save_pdf
 
 OLLAMA_URL = os.environ.get("OLLAMA_HOST", "http://127.0.0.1:11434").rstrip("/")
 if not OLLAMA_URL.startswith("http"):
@@ -58,7 +58,7 @@ def ollama(prompt: str, model: str | None = None, system: str | None = None) -> 
 
 def _document_text(path, pages="all") -> str:
     doc = open_pdf(path)
-    text = "\n".join(doc[i].get_text(sort=True) for i in parse_pages(pages, doc.page_count))
+    text = "\n".join("\n".join(reading_order(doc[i])) for i in parse_pages(pages, doc.page_count))
     if not text.strip():
         raise ToolError("no text found – scanned document? run `localpdf ocr` first")
     return text

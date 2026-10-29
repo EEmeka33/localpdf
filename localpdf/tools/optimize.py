@@ -137,17 +137,37 @@ def ocr(inputs, output: Path, lang="eng", force=False, deskew=True, dpi=300):
         raise ToolError("OCR needs Tesseract: apt install tesseract-ocr (and tesseract-ocr-<lang> for other languages)")
     tessdata = _tessdata()
     doc = open_pdf(src)
-    out = fitz.open()
-    for i, page in enumerate(doc):
+    for i in range(doc.page_count):
+        page = doc[i]
         if page.get_text().strip() and not force:
-            out.insert_pdf(doc, from_page=i, to_page=i)  # already has text
+            continue  # already searchable
+        if force:  # replace the page by a fresh rendering + OCR text (like ocrmypdf --force-ocr)
+            pix = page.get_pixmap(dpi=dpi)  # must be RGB: MuPDF's OCR writer silently drops text for gray pixmaps
+            ocr_pdf = fitz.open("pdf", pix.pdfocr_tobytes(language=lang, tessdata=tessdata))
+            rect = page.rect
+            doc.delete_page(i)
+            new = doc.new_page(pno=i, width=rect.width, height=rect.height)
+            new.show_pdf_page(new.rect, ocr_pdf, 0)
             continue
-        pix = page.get_pixmap(dpi=dpi)
-        ocr_pdf = fitz.open("pdf", pix.pdfocr_tobytes(language=lang, tessdata=tessdata))
-        # pdfocr pages are sized from the pixmap; scale back to the original page size
-        new = out.new_page(width=page.rect.width, height=page.rect.height)
-        new.show_pdf_page(new.rect, ocr_pdf, 0)
-    return save_pdf(out, output)
+        _add_text_layer(page, lang, dpi, tessdata)
+    return save_pdf(doc, output, garbage=4)
+
+
+def _add_text_layer(page, lang, dpi, tessdata):
+    """Lay invisible OCR words over the untouched page: original image quality and file size are kept."""
+    tp = page.get_textpage_ocr(language=lang, dpi=dpi, full=True, tessdata=tessdata)
+    font = fitz.Font("helv")
+    for x0, y0, x1, y1, word, *_ in page.get_text("words", textpage=tp):
+        height = y1 - y0
+        size = height * 0.9
+        natural = font.text_length(word, fontsize=size)
+        if natural <= 0:
+            continue
+        # stretch each word to its box so text selection lines up with the picture
+        origin = fitz.Point(x0, y1 - height * 0.2)
+        tw = fitz.TextWriter(page.rect)
+        tw.append(origin, word, font=font, fontsize=size)
+        tw.write_text(page, render_mode=3, morph=(origin, fitz.Matrix((x1 - x0) / natural, 1)))
 
 
 def _tessdata() -> str | None:

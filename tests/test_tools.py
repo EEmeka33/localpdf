@@ -4,6 +4,7 @@ from __future__ import annotations
 import json
 import unicodedata
 import zipfile
+from pathlib import Path
 
 import pymupdf as fitz
 import pytest
@@ -123,6 +124,10 @@ def test_ocr(samples, tmp_path):
     assert not text_of(samples["scanned"]).strip()
     out = run("ocr", [samples["scanned"]], tmp_path / "o.pdf")[0]
     assert "12345" in text_of(out)
+    # the scan itself is kept as is: only an invisible text layer is added
+    assert out.stat().st_size < samples["scanned"].stat().st_size * 1.5
+    forced = run("ocr", [samples["scanned"]], tmp_path / "f.pdf", force=True, dpi=200)[0]
+    assert "12345" in text_of(forced)
 
 
 # ------------------------------------------------------------------ convert to
@@ -237,7 +242,7 @@ def test_pdf_to_powerpoint(samples, tmp_path):
 def test_pdf_to_excel(samples, tmp_path):
     from openpyxl import load_workbook
 
-    out = run("pdf-to-excel", [samples["pdf"]], tmp_path / "x.xlsx", pages="2", text_fallback=False)[0]
+    out = run("pdf-to-excel", [samples["pdf"]], tmp_path / "x.xlsx", pages="2", text=False)[0]
     wb = load_workbook(out)
     values = [c for ws in wb for row in ws.iter_rows(values_only=True) for c in row]
     assert "North" in values and 1350 in values and 1620 in values
@@ -491,3 +496,108 @@ def test_web_api(samples):
         r = client.post("/api/run/remove-pages", data={"files": [(a, "a.pdf")], "pages": "77"},
                         content_type="multipart/form-data")
     assert r.status_code == 400 and "out of range" in r.get_json()["error"]
+
+
+# ------------------------------------------------------------------ regressions found by examples/ evaluation
+REALWORLD = Path(__file__).parent.parent / "examples" / "inputs" / "realworld"
+
+
+def test_number_parsing():
+    from localpdf.tools.convert_from import _number
+
+    assert _number("18,870") == (18870, "#,##0")
+    assert _number("98 452") == (98452, "#,##0")  # space thousands separator
+    assert _number("3,873.52 €") == (3873.52, '#,##0.00 "€"')
+    assert _number("$1,200.00") == (1200.0, '"$"#,##0.00')
+    assert _number("25.1%") == (0.251, "0.0%")
+    assert _number("(1,234.00)") == (-1234.0, "#,##0.00")
+    assert _number("007") == ("007", None) and _number("08/12/2019") == ("08/12/2019", None)
+    assert _number("") == (None, None)
+
+
+@pytest.mark.skipif(not REALWORLD.exists(), reason="examples not present")
+def test_tables_on_real_world_pdfs():
+    from localpdf.tables import extract_tables
+
+    nics = extract_tables(fitz.open(REALWORLD / "nics-background-checks-2015-11.pdf")[0])[0]
+    rows = {r[0]: r for r in nics}
+    assert rows["Alabama"][1:4] == ["18,870", "23,022", "22,650"]  # one state per row, commas intact
+    assert rows["Totals"][1] == "804,006"
+    # the Senate ledger is drawn rotated 90° and in fake bold (every glyph printed twice)
+    senate = extract_tables(fitz.open(REALWORLD / "senate-expenditures.pdf")[0])[0]
+    row = next(r for r in senate if r[0] == "DHAW20190001")
+    assert "05/03/2019" in row and "920.68" in row and "STAFF TRANSPORTATION" in " ".join(row)
+
+
+def test_pdf_to_excel_keeps_text_and_totals(samples, tmp_path):
+    from openpyxl import load_workbook
+
+    out = run("pdf-to-excel", [samples["pdf"]], tmp_path / "x.xlsx", pages="2")[0]
+    values = [c for row in load_workbook(out).active.iter_rows(values_only=True) for c in row if c is not None]
+    assert "Chapter 2: Results" in values  # text around the table is kept (sheet-per-page)
+    assert {"North", 1350, 1620} <= set(values)
+
+
+def test_reading_order_multi_column(tmp_path):
+    from localpdf.utils import reading_order
+
+    doc = fitz.open()
+    page = doc.new_page()
+    page.insert_textbox(fitz.Rect(40, 40, 555, 80), "TITLE spanning the page", fontsize=16)
+    for col, x in enumerate((40, 310)):
+        for k in range(4):  # paragraphs whose gaps line up across columns
+            page.insert_textbox(fitz.Rect(x, 100 + k * 60, x + 245, 150 + k * 60), f"col{col} para{k} " * 4, fontsize=9)
+    text = " ".join(reading_order(page))
+    order = [text.index(f"col{c} para{k}") for c in range(2) for k in range(4)]
+    assert text.index("TITLE") < order[0] and order == sorted(order)
+
+
+def test_scan_deskew_angle():
+    from PIL import Image, ImageDraw
+
+    from localpdf.tools.organize import _skew_angle
+
+    img = Image.new("L", (1200, 1600), 255)
+    d = ImageDraw.Draw(img)
+    for i in range(30):
+        d.text((100, 100 + i * 45), "The quick brown fox jumps over the lazy dog " * 2, fill=0)
+    tilted = img.rotate(4, expand=True, fillcolor=255)
+    assert abs(_skew_angle(tilted) + 4) < 0.6
+
+
+@needs_soffice
+def test_excel_fit_width(tmp_path):
+    from openpyxl import Workbook
+
+    wb = Workbook()
+    ws = wb.active
+    ws.append([f"column {i}" for i in range(14)])
+    for r in range(30):
+        ws.append([f"value {r}-{i}" for i in range(14)])
+    for i in range(14):
+        ws.column_dimensions[chr(65 + i)].width = 18
+    src = tmp_path / "wide.xlsx"
+    wb.save(src)
+    narrow = run("excel-to-pdf", [src], tmp_path / "none.pdf", fit="none")[0]
+    fitted = run("excel-to-pdf", [src], tmp_path / "w.pdf")[0]
+    assert "column 13" not in fitz.open(narrow)[0].get_text()  # LibreOffice default cuts the columns
+    assert "column 13" in fitz.open(fitted)[0].get_text() and fitz.open(fitted).page_count == 1
+
+
+def test_jpg_to_pdf_bogus_dpi(tmp_path):
+    from PIL import Image
+
+    p = tmp_path / "fax.tiff"
+    frames = [Image.new("1", (1240, 1754), 1) for _ in range(2)]
+    frames[0].save(p, save_all=True, append_images=frames[1:], dpi=(1, 1))
+    doc = fitz.open(run("jpg-to-pdf", [p], tmp_path / "f.pdf")[0])
+    assert doc.page_count == 2 and doc[0].rect.width < 1000
+
+
+def test_html_single_page_is_one_page(samples, tmp_path):
+    pytest.importorskip("playwright")
+    long_page = tmp_path / "long.html"  # lots of wrapping text: any width mismatch makes it taller
+    long_page.write_text("<body style='font:16px sans-serif'>" + ("<p>" + "word " * 400 + "</p>") * 12 + "</body>")
+    out = _chromium_or_skip(lambda: run("html-to-pdf", [long_page], tmp_path / "s.pdf", engine="chromium",
+                                        paper="single", margin="big")[0])
+    assert fitz.open(out).page_count == 1

@@ -57,7 +57,9 @@ def jpg_to_pdf(inputs, output: Path, page_size="fit", orientation="auto", margin
             else:
                 frame.save(buf, fmt, quality=quality)
             iw, ih = frame.size
-            dpi = frame.info.get("dpi", (96, 96))[0] or 96
+            dpi = float(frame.info.get("dpi", (96, 96))[0] or 96)
+            if not 30 <= dpi <= 2400:  # missing or bogus resolution (e.g. 1×1 in some faxes/scans)
+                dpi = 150 if min(iw, ih) > 1200 else 96
             if page_size == "fit":
                 m = MARGINS[margin]
                 w, h = iw * 72 / dpi + 2 * m, ih * 72 / dpi + 2 * m
@@ -109,11 +111,74 @@ for _name, _title, _exts, _aliases, _desc in [
      "Make DOC, DOCX, ODT and RTF files easy to read by converting them to PDF."),
     ("powerpoint-to-pdf", "PowerPoint to PDF", PPT_EXTS, ("ppt-to-pdf", "pptx-to-pdf"),
      "Make PPT, PPTX and ODP slideshows easy to view by converting them to PDF."),
-    ("excel-to-pdf", "Excel to PDF", EXCEL_EXTS, ("xls-to-pdf", "xlsx-to-pdf"),
-     "Make EXCEL / ODS / CSV spreadsheets easy to read by converting them to PDF."),
 ]:
     tool(name=_name, title=_title, category="Convert to PDF", help=_desc, accept=_exts, aliases=_aliases,
          requires=("soffice",))(_office)
+
+@tool(
+    name="excel-to-pdf", title="Excel to PDF", category="Convert to PDF",
+    help="Make EXCEL / ODS / CSV spreadsheets easy to read by converting them to PDF.",
+    accept=EXCEL_EXTS, aliases=("xls-to-pdf", "xlsx-to-pdf"), requires=("soffice",),
+    opts=[Opt("fit", "choice", "width", "'width' = all columns on the page width (no columns cut onto extra pages), "
+              "'page' = every sheet on a single page, 'none' = the file's own print settings.", ["width", "page", "none"])],
+)
+def excel_to_pdf(inputs, output: Path, fit="width"):
+    src = Path(inputs[0])
+    with tempdir() as tmp:
+        fmt = "pdf"
+        if fit == "page":
+            fmt = 'pdf:calc_pdf_Export:{"SinglePageSheets":{"type":"boolean","value":"true"}}'
+        elif fit == "width" and src.suffix.lower() in (".xlsx", ".xlsm"):
+            src = _fit_columns_to_width(src, tmp / src.name)
+        produced = soffice_convert(src, tmp, fmt)
+        output.parent.mkdir(parents=True, exist_ok=True)
+        shutil.move(produced, output)
+    return [output]
+
+
+def _fit_columns_to_width(src: Path, dst: Path) -> Path:
+    """Copy of an .xlsx whose sheets print 1 page wide (any number of pages tall).
+
+    Edits the sheet XML directly (instead of round-tripping through openpyxl, which drops charts and images).
+    """
+    import zipfile
+
+    def patch(xml: str) -> str:
+        # <sheetPr><pageSetUpPr fitToPage="1"/></sheetPr> must be the first child of <worksheet>
+        if re.search(r"<pageSetUpPr\b", xml):
+            def fit_flag(m):
+                attrs = re.sub(r' fitToPage="[^"]*"', "", m.group(1))
+                return f'<pageSetUpPr{attrs} fitToPage="1"{m.group(2)}>'
+            xml = re.sub(r"<pageSetUpPr\b([^>]*?)(/?)>", fit_flag, xml, count=1)
+        elif re.search(r"<sheetPr\b[^>]*/>", xml):
+            xml = re.sub(r"<sheetPr\b([^>]*)/>", r'<sheetPr\1><pageSetUpPr fitToPage="1"/></sheetPr>', xml, count=1)
+        elif "<sheetPr" in xml:
+            xml = re.sub(r"(<sheetPr\b[^>]*>)", r'\1<pageSetUpPr fitToPage="1"/>', xml, count=1)
+        else:
+            xml = re.sub(r"(<worksheet\b[^>]*>)", r'\1<sheetPr><pageSetUpPr fitToPage="1"/></sheetPr>', xml, count=1)
+        if "<pageSetup" in xml:
+            def fix(m):
+                attrs = re.sub(r' fitTo(Width|Height)="[^"]*"', "", m.group(1))
+                return f'<pageSetup{attrs} fitToWidth="1" fitToHeight="0"{m.group(2)}>'
+            xml = re.sub(r"<pageSetup\b([^>]*?)(/?)>", fix, xml, count=1)
+        else:
+            anchor = re.search(r"<pageMargins\b[^>]*/>|</pageMargins>", xml)
+            tag = '<pageSetup fitToWidth="1" fitToHeight="0"/>'
+            if anchor:
+                xml = xml[:anchor.end()] + tag + xml[anchor.end():]
+            else:
+                nxt = re.search(r"<(headerFooter|rowBreaks|colBreaks|drawing|legacyDrawing|picture|tableParts|extLst)\b|</worksheet>", xml)
+                xml = xml[:nxt.start()] + tag + xml[nxt.start():]
+        return xml
+
+    with zipfile.ZipFile(src) as zin, zipfile.ZipFile(dst, "w", zipfile.ZIP_DEFLATED) as zout:
+        for item in zin.infolist():
+            data = zin.read(item.filename)
+            if re.fullmatch(r"xl/worksheets/sheet\d+\.xml", item.filename):
+                data = patch(data.decode("utf-8")).encode("utf-8")
+            zout.writestr(item, data)
+    return dst
+
 
 tool(
     name="office-to-pdf", title="Any document to PDF", category="Extras", extra=True,
@@ -232,7 +297,10 @@ def _chromium(url, output, paper, orientation, margin, media, width, wait, backg
             opts = dict(path=str(output), print_background=background, margin=dict(top=m, bottom=m, left=m, right=m))
             if paper == "single":
                 height = page.evaluate("document.documentElement.scrollHeight")
-                opts.update(width=f"{width}px", height=f"{height + 2 * margin + 1}px")
+                # margins are in pt, the page in CSS px; widen the page by the margins so the content
+                # area is exactly the viewport we measured (otherwise text re-wraps and grows taller)
+                margin_px = margin * 96 / 72
+                opts.update(width=f"{width + 2 * margin_px:.0f}px", height=f"{height + 2 * margin_px + 2:.0f}px")
             else:
                 opts.update(format=paper.capitalize() if paper != "a4" else "A4", landscape=orientation == "landscape")
                 if paper in ("a3", "a5"):
@@ -351,7 +419,11 @@ def markdown_to_pdf(inputs, output: Path, **opts):
     import markdown
 
     src = Path(inputs[0])
-    body = markdown.markdown(src.read_text(encoding="utf-8"),
+    text = src.read_text(encoding="utf-8")
+    # GitHub task lists: "- [ ] todo" / "- [x] done"
+    text = re.sub(r"^(\s*[-*+]\s+)\[ \]", r"\1☐", text, flags=re.M)
+    text = re.sub(r"^(\s*[-*+]\s+)\[[xX]\]", r"\1☑", text, flags=re.M)
+    body = markdown.markdown(text,
                              extensions=["extra", "sane_lists", "toc", "codehilite", "admonition"],
                              extension_configs={"codehilite": {"noclasses": True}})
     html = f"<!doctype html><html><head><meta charset='utf-8'><title>{html_lib.escape(src.stem)}</title>" \
@@ -373,11 +445,14 @@ def markdown_to_pdf(inputs, output: Path, **opts):
 def text_to_pdf(inputs, output: Path, font_size=9.5, paper="a4", orientation="portrait", line_numbers=False):
     src = Path(inputs[0])
     lines = src.read_text(encoding="utf-8", errors="replace").expandtabs(4).splitlines()
+    indent = 4  # wrapped continuation lines get a hanging indent so they don't look like new lines
     if line_numbers:
         width = len(str(len(lines)))
         lines = [f"{i:>{width}}  {line}" for i, line in enumerate(lines, 1)]
-    body = html_lib.escape("\n".join(lines))
-    html = f"<pre>{body}</pre>"
-    css = f"pre {{ font-family: monospace; font-size: {font_size}pt; white-space: pre-wrap; }}"
+        indent = width + 2
+    html = "".join(f"<p>{html_lib.escape(line) or '&nbsp;'}</p>" for line in lines)
+    em = indent * 0.6  # monospace advance ≈ 0.6 em
+    css = (f"p {{ font-family: monospace; font-size: {font_size}pt; white-space: pre-wrap; margin: 0; "
+           f"padding-left: {em:.2f}em; text-indent: -{em:.2f}em; }}")
     _story_to_pdf(html, output, paper, orientation, 40, css=css)
     return [output]

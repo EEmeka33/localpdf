@@ -188,12 +188,14 @@ def organize(inputs, output: Path, order):
         Opt("pages_to_scan", "int", 1, "Number of pages to scan (scanner mode, flatbed)."),
         Opt("resolution", "int", 300, "Scanner resolution in DPI."),
         Opt("mode", "choice", "auto", "Image clean-up.", ["auto", "color", "grayscale", "bw", "none"]),
+        Opt("deskew", "bool", True, "Straighten tilted pages (up to ±15°)."),
+        Opt("crop", "bool", True, "Crop photos to the sheet of paper (removes the desk/background)."),
         Opt("ocr", "bool", False, "Make the result searchable with OCR (needs tesseract)."),
         Opt("lang", "str", "eng", "OCR language(s), e.g. 'eng+fra'."),
     ],
 )
 def scan_to_pdf(inputs, output: Path, scanner=False, device=None, pages_to_scan=1, resolution=300,
-                mode="auto", ocr=False, lang="eng"):
+                mode="auto", deskew=True, crop=True, ocr=False, lang="eng"):
     from PIL import Image, ImageFilter, ImageOps
 
     with tempdir() as tmp:
@@ -212,7 +214,13 @@ def scan_to_pdf(inputs, output: Path, scanner=False, device=None, pages_to_scan=
 
         doc = fitz.open()
         for img_path in images:
-            img = ImageOps.exif_transpose(Image.open(img_path))
+            img = ImageOps.exif_transpose(Image.open(img_path)).convert("RGB")
+            if deskew:
+                angle = _skew_angle(img.convert("L"))
+                if abs(angle) >= 0.2:
+                    img = img.rotate(angle, expand=True, resample=Image.BICUBIC, fillcolor=(0, 0, 0))
+            if crop:
+                img = _crop_to_paper(img)
             img = _clean_scan(img, mode, ImageOps, ImageFilter)
             buf = io.BytesIO()
             if img.mode == "1":
@@ -231,6 +239,73 @@ def scan_to_pdf(inputs, output: Path, scanner=False, device=None, pages_to_scan=
         run_ocr([str(output)], tmp_out, lang=lang)
         tmp_out.replace(output)
     return result
+
+
+def _ink(gray):
+    """White-on-black text mask, independent of uneven lighting."""
+    from PIL import ImageChops, ImageFilter
+
+    background = gray.filter(ImageFilter.GaussianBlur(radius=max(gray.size) // 40 or 1))
+    return ImageChops.subtract(background, gray).point(lambda v: 255 if v > 25 else 0)
+
+
+def _skew_angle(gray) -> float:
+    """Projection-profile deskew: the rotation whose text rows are sharpest (max row-sum variance)."""
+    from PIL import Image
+
+    small = gray.copy()
+    small.thumbnail((900, 900))
+    ink = _ink(small)
+
+    def sharpness(angle):
+        rows = ink.rotate(angle, resample=Image.NEAREST).resize((1, ink.height), Image.BOX).getdata()
+        vals = list(rows)
+        mean = sum(vals) / len(vals)
+        return sum((v - mean) ** 2 for v in vals)
+
+    best = max((a / 2 for a in range(-30, 31)), key=sharpness)  # ±15° in 0.5° steps
+    return max((best + a / 10 for a in range(-5, 6)), key=sharpness)  # refine to 0.1°
+
+
+def _otsu(hist) -> int:
+    total = sum(hist)
+    sum_all = sum(i * h for i, h in enumerate(hist))
+    best, threshold, w0, sum0 = 0.0, 128, 0, 0.0
+    for t in range(256):
+        w0 += hist[t]
+        if w0 == 0 or w0 == total:
+            continue
+        sum0 += t * hist[t]
+        m0, m1 = sum0 / w0, (sum_all - sum0) / (total - w0)
+        between = w0 * (total - w0) * (m0 - m1) ** 2
+        if between > best:
+            best, threshold = between, t
+    return threshold
+
+
+def _crop_to_paper(img):
+    """Crop to the bright sheet of paper; leaves plain scans (paper everywhere) untouched."""
+    from PIL import Image
+
+    gray = img.convert("L")
+    small = gray.copy()
+    small.thumbnail((600, 600))
+    t = _otsu(small.histogram())
+    paper = small.point(lambda v: 255 if v > t else 0)
+    cols = list(paper.resize((small.width, 1), Image.BOX).getdata())
+    rows = list(paper.resize((1, small.height), Image.BOX).getdata())
+
+    def span(profile):
+        idx = [i for i, v in enumerate(profile) if v > 255 * 0.55]
+        return (idx[0], idx[-1] + 1) if idx else (0, len(profile))
+
+    (x0, x1), (y0, y1) = span(cols), span(rows)
+    if (x1 - x0) * (y1 - y0) < 0.2 * small.width * small.height:
+        return img  # no convincing sheet found
+    sx, sy = img.width / small.width, img.height / small.height
+    inset = 0.01 * min(img.size)  # drop the shadowed paper edge
+    box = (int(x0 * sx + inset), int(y0 * sy + inset), int(x1 * sx - inset), int(y1 * sy - inset))
+    return img.crop(box)
 
 
 def _clean_scan(img, mode, ImageOps, ImageFilter):
