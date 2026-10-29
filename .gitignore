@@ -9,3 +9,4 @@ venv/
 .ruff_cache/
 *.pdf
 !tests/**/*.pdf
+!examples/**/*.pdf

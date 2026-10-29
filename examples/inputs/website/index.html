@@ -1,0 +1,21 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><title>Helios Energy – Dashboard</title>
+<link rel="stylesheet" href="assets/style.css"></head>
+<body>
+<header><img src="assets/logo.svg" alt="Helios"><nav><a href="#">Product</a><a href="#">Pricing</a><a href="#">Docs</a></nav></header>
+<section class="hero"><h1>Clean energy, managed locally.</h1><p>Revenue network capacity risk contract energy pricing solar market project team market install budget risk contract risk contract quarterly install.</p></section>
+<section class="grid"><div class="card"><h3>Store</h3><p>Risk storage revenue roadmap pilot forecast pricing storage growth pricing pricing efficiency storage install network quarterly.</p></div><div class="card"><h3>Monitor</h3><p>Pricing network solar growth energy install budget pricing storage efficiency solar network roadmap capacity supplier quarterly.</p></div><div class="card"><h3>Optimize</h3><p>Supplier pricing forecast contract supplier market efficiency storage supplier revenue market supplier team pilot network market.</p></div></section>
+<h2 style="padding:0 40px">Latest orders</h2>
+<table><thead><tr><th>Customer</th><th>Product</th><th>Qty</th><th>Amount</th></tr></thead><tbody><tr><td>Amélie Martin</td><td>Monitoring licence</td><td class='num'>25</td><td class='num'>5,047.35 €</td></tr><tr><td>Omar Dos Santos</td><td>Mounting rail</td><td class='num'>11</td><td class='num'>2,208.28 €</td></tr><tr><td>Lena Nguyen</td><td>Charging station</td><td class='num'>22</td><td class='num'>3,658.49 €</td></tr><tr><td>Inès Rossi</td><td>Heat pump</td><td class='num'>6</td><td class='num'>268.58 €</td></tr><tr><td>Noah Rossi</td><td>Maintenance plan</td><td class='num'>34</td><td class='num'>7,032.74 €</td></tr><tr><td>Omar Rossi</td><td>Cable kit</td><td class='num'>12</td><td class='num'>4,505.30 €</td></tr><tr><td>Noah Rossi</td><td>Solar inverter</td><td class='num'>25</td><td class='num'>897.35 €</td></tr><tr><td>Jonas Kowalski</td><td>Monitoring licence</td><td class='num'>37</td><td class='num'>3,113.63 €</td></tr></tbody></table>
+<div class="figure"><img src="assets/chart.png" alt="chart"><canvas id="c" width="360" height="240"></canvas></div>
+<p style="padding:0 40px" id="generated"></p>
+<footer>© 2026 Helios Energy · Rendered from a local file – no web server involved.</footer>
+<script>
+  // drawn by JavaScript at load time: only a real browser engine will show it
+  const c = document.getElementById('c').getContext('2d');
+  const vals = [12, 19, 7, 15, 22, 30];
+  vals.forEach((v, i) => { c.fillStyle = ['#1f5fd1', '#e5322d', '#2e9e44'][i % 3]; c.fillRect(20 + i * 55, 220 - v * 6, 40, v * 6); });
+  c.fillStyle = '#1d2433'; c.font = 'bold 16px sans-serif'; c.fillText('Canvas chart (JS)', 20, 24);
+  document.getElementById('generated').textContent = 'This sentence was inserted by JavaScript.';
+</script>
+</body></html>

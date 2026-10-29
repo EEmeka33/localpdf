@@ -1,0 +1,479 @@
+jbell on DSKJLSW7X2PROD with PROPOSALS
+
+47698 
+
+Proposed Rules
+Federal Register
+
+Vol. 85, No. 152 
+
+Thursday, August 6, 2020 
+
+This section of the FEDERAL REGISTER
+contains notices to the public of the proposed
+issuance of rules and regulations. The
+purpose of these notices is to give interested
+persons an opportunity to participate in the
+rule making prior to the adoption of the final
+rules.
+
+DEPARTMENT OF TRANSPORTATION 
+
+Federal Aviation Administration 
+
+14 CFR Part 39 
+
+[Docket No. FAA–2020–0686; Product 
+Identifier 2019–NM–035–AD] 
+
+RIN 2120–AA64 
+
+Airworthiness Directives; The Boeing 
+Company Airplanes 
+
+AGENCY: Federal Aviation 
+Administration (FAA), DOT. 
+
+ACTION: Notice of proposed rulemaking 
+(NPRM). 
+
+SUMMARY: The FAA proposes to 
+supersede Airworthiness Directive (AD) 
+2018–23–51, which applies to all The 
+Boeing Company Model 737–8 and 737– 
+9 (737 MAX) airplanes. Since AD 2018– 
+23–51 was issued, the agency has 
+determined that final corrective action 
+is necessary to address the unsafe 
+condition. This proposed AD would 
+require installing new flight control 
+computer (FCC) software, revising the 
+existing Airplane Flight Manual (AFM) 
+to incorporate new and revised 
+flightcrew procedures, installing new 
+MAX display system (MDS) software, 
+changing the horizontal stabilizer trim 
+wire routing installations, completing 
+an angle of attack sensor system test, 
+and performing an operational readiness 
+flight. This proposed AD would also 
+apply to a narrower set of airplanes than 
+the superseded AD, and allow operation 
+(dispatch) of an airplane with certain 
+inoperative systems only if certain 
+provisions are incorporated in the 
+operator’s existing FAA-approved 
+minimum equipment list (MEL). The 
+FAA is proposing this AD to address the 
+unsafe condition on these products. 
+
+DATES: The FAA must receive comments 
+on this proposed AD by September 21, 
+2020. 
+
+ADDRESSES: You may send comments, 
+using the procedures found in 14 CFR 
+11.43 and 11.45, by any of the following 
+methods: 
+
+• Federal eRulemaking Portal: Go to 
+https://www.regulations.gov. Follow the 
+instructions for submitting comments. 
+
+• Fax: 202–493–2251. 
+• Mail: U.S. Department of 
+Transportation, Docket Operations, M– 
+30, West Building Ground Floor, Room 
+W12–140, 1200 New Jersey Avenue SE, 
+Washington, DC 20590. 
+
+• Hand Delivery: Deliver to Mail 
+address above between 9 a.m. and 5 
+p.m., Monday through Friday, except 
+Federal holidays. 
+
+For Boeing service information 
+identified in this NPRM, contact Boeing 
+Commercial Airplanes, Attention: 
+Contractual & Data Services (C&DS), 
+2600 Westminster Blvd., MC 110–SK57, 
+Seal Beach, CA 90740–5600; telephone 
+562–797–1717; internet https://
+www.myboeingfleet.com. You may view 
+this referenced service information at 
+the FAA, Airworthiness Products 
+Section, Operational Safety Branch, 
+2200 South 216th St., Des Moines, WA. 
+For information on the availability of 
+this material at the FAA, call 206–231– 
+3195. It is also available in the Docket 
+for this rulemaking, which may be 
+found on the internet at https://
+www.regulations.gov by searching for 
+and locating Docket No. FAA–2020– 
+0686. 
+
+Examining the AD Docket 
+
+You may examine the AD docket on 
+the internet at https://
+www.regulations.gov by searching for 
+and locating Docket No. FAA–2020– 
+0686; or in person at Docket Operations 
+between 9 a.m. and 5 p.m., Monday 
+through Friday, except Federal holidays. 
+The AD docket contains this NPRM, any 
+comments received, and other 
+information. The street address for 
+Docket Operations is listed above. 
+Comments will be available in the AD 
+docket shortly after receipt. 
+
+FOR FURTHER INFORMATION CONTACT: Ian 
+Won, Manager, Seattle ACO Branch, 
+FAA, 2200 South 216th St., Des Moines, 
+WA 98198; phone and fax: 206–231– 
+3500; email: 9-FAA-SACO-AD-Inquiry@
+faa.gov. 
+
+SUPPLEMENTARY INFORMATION: 
+
+Comments Invited 
+
+The FAA invites you to participate in 
+this rulemaking by submitting written 
+comments, data, or views about this 
+proposal. The most helpful comments 
+reference a specific portion of the 
+
+proposal, explain the reason for any 
+recommended change, and include 
+supporting data. To ensure the docket 
+does not contain duplicate comments, 
+commenters should submit only one 
+copy of the comments. Send your 
+comments to an address listed under the 
+ADDRESSES section. Include ‘‘Docket No. 
+FAA–2020–0686; Product Identifier 
+2019–NM–035–AD’’ at the beginning of 
+your comments. 
+
+Except for Confidential Business 
+Information (CBI) as described in the 
+following paragraph, and other 
+information as described in 14 CFR 
+11.35, the FAA will post all comments 
+received, without change, as well as a 
+report summarizing each substantive 
+public contact with FAA personnel 
+concerning this proposed rulemaking. 
+Before acting on this proposal, the FAA 
+will consider all comments received by 
+the closing date for comments. The FAA 
+will consider comments filed after the 
+comment period has closed if it is 
+possible to do so without incurring 
+expense or delay. The FAA may change 
+this NPRM because of those comments. 
+
+Confidential Business Information (CBI) 
+
+CBI is commercial or financial 
+information that is both customarily and 
+actually treated as private by its owner. 
+Under the Freedom of Information Act 
+(FOIA) (5 U.S.C. 552), CBI is exempt 
+from public disclosure. If comments 
+responsive to this NPRM contain 
+commercial or financial information 
+that is customarily treated as private, 
+that you actually treat as private, and 
+that is relevant or responsive to this 
+NPRM, it is important that you clearly 
+designate the submitted comments as 
+CBI. Please mark each page of your 
+submission containing CBI as 
+‘‘PROPIN.’’ The FAA will treat such 
+marked submissions as confidential 
+under the FOIA, and they will not be 
+placed in the public docket of this 
+NPRM. Submissions containing CBI 
+should be sent to the person identified 
+in the FOR FURTHER INFORMATION 
+CONTACT section. Any commentary that 
+the FAA receives which is not 
+specifically designated as CBI will be 
+placed in the public docket for this 
+rulemaking. 
+
+Background 
+
+On October 29, 2018, a Boeing Model 
+737–8 airplane operated by Lion Air 
+(Lion Air Flight 610) was involved in an 
+accident after takeoff from Soekarno- 
+
+VerDate Sep<11>2014 
+16:21 Aug 05, 2020
+Jkt 250001
+PO 00000
+Frm 00001
+Fmt 4702
+Sfmt 4702
+E:\FR\FM\06AUP1.SGM
+06AUP1
+jbell on DSKJLSW7X2PROD with PROPOSALS
+
+47699 
+Federal Register / Vol. 85, No. 152 / Thursday, August 6, 2020 / Proposed Rules 
+
+Hatta International Airport in Jakarta, 
+Indonesia, resulting in 189 fatalities. 
+Investigation of the accident has been 
+completed by the Indonesian authorities 
+(Komite Nasional Keselamatan 
+Transportasi (KNKT)) with assistance 
+from the National Transportation Safety 
+Board (NTSB) and the FAA of the 
+United States, the manufacturer, and the 
+operator. Reports 1 from the accident 
+investigation indicate that the airplane’s 
+flight control system 2 generated 
+repeated airplane nose-down horizontal 
+stabilizer trim 3 commands contributing 
+to the accident. 
+
+Following the Lion Air Flight 610 
+accident on October 29, 2018, data from 
+the flight data recorder, which is 
+contained in the Indonesian accident 
+report (http://knkt.dephub.go.id/knkt/ 
+ntsc_aviation/baru/2018%20- 
+%20035%20-%20PK- 
+LQP%20Final%20Report.pdf), indicated 
+that a single erroneously high angle of 
+attack (AOA) sensor 4 input to the flight 
+control system while the flaps are 
+retracted can cause repeated airplane 
+nose-down trim of the horizontal 
+stabilizer and multiple flightdeck 
+effects. 
+
+These effects include stall warning 
+activation, airspeed disagree alert, and 
+
+1 Preliminary KNKT.18.10.35.04 Aircraft 
+Accident Investigation Report, dated November 
+2018, and Final KNKT.18.10.35.04 Aircraft 
+Accident Investigation Report, dated October 2019, 
+can be found in the AD docket. 
+
+2 The flight control system for 737 MAX airplanes 
+includes two flight control computers, FCC A and 
+FCC B, which process inputs from the pilots and 
+aircraft sensors to move the airplane’s control 
+surfaces. 
+
+3 An airplane’s nose-up or nose-down attitude is 
+known as its ‘‘pitch attitude.’’ On the 737 MAX, the 
+airplane’s pitch attitude is primarily controlled by 
+a combination of two movable surfaces on the tail 
+of the airplane: The horizontal stabilizer, which is 
+controlled by electric and manual (pilot) trim 
+inputs, and the elevator, which is controlled by 
+moving the control columns. ‘‘Pitch trim’’ 
+commands move the horizontal stabilizer. Pilots use 
+pitch trim to adjust the position of the horizontal 
+stabilizer to achieve the desired flight path and to 
+manage the forces necessary to keep the airplane in 
+stable flight. 
+
+4 The angle of attack (or AOA) is the angle at 
+which the airplane wing meets the oncoming air. 
+On the current 737 MAX, AOA is measured by two 
+independent AOA sensors, which are small vanes 
+mounted on either side of the forward exterior of 
+the fuselage. For the purposes of this NPRM, ‘‘high’’ 
+AOA is a relatively large angle (associated with 
+flight conditions outside of the normal flight 
+envelope), and ‘‘low’’ AOA is a relatively small 
+angle (associated with flight conditions within the 
+normal flight envelope). Although wing lift 
+increases with increased AOA, an excessively high 
+airplane nose-up AOA can be hazardous, since 
+eventually lift can be lost, causing the airplane to 
+stall. A stall occurs when the airflow around the 
+wing is sufficiently disrupted to cause the wing to 
+no longer generate lift. To warn of an impending 
+stall, the 737 MAX is equipped with a ‘‘stick 
+shaker,’’ which vibrates the control column, 
+providing tactile annunciation to the pilot. 
+
+altitude disagree alert,5 and may affect 
+the flightcrew’s ability to accomplish 
+continued safe flight and landing. 
+
+On November 7, 2018, the FAA issued 
+Emergency AD 2018–23–51 as an 
+interim corrective action.6 The FAA 
+sent Emergency AD 2018–23–51 to all 
+known U.S. owners and operators of 
+Boeing Model 737 MAX airplanes to 
+require revising certificate limitations 
+and operating procedures of the AFM to 
+provide the flightcrew with runaway 
+horizontal stabilizer trim procedures to 
+follow under certain conditions. The 
+FAA sent Emergency AD 2018–23–51 to 
+all affected civil aviation authorities 
+(CAAs) at the same time. AD 2018–23– 
+51, Amendment 39–19512 (83 FR 
+62697, December 6, 2018; corrected 
+December 11, 2018 (83 FR 63561)), was 
+published in the Federal Register as an 
+amendment to 14 CFR 39.13. 
+
+On March 10, 2019, a Boeing Model 
+737–8 airplane operated by Ethiopian 
+Airlines (Ethiopian Airlines Flight 302) 
+was involved in an accident after takeoff 
+from Addis Ababa Bole International 
+Airport in Addis Ababa, Ethiopia, 
+resulting in 157 fatalities. The accident 
+is under investigation by the Ethiopian 
+Accident Investigation Bureau (EAIB) 
+with assistance from the NTSB and the 
+FAA of the United States, the French 
+Bureau of Enquiry and Analysis for 
+Civil Aviation Safety (BEA), the 
+European Union Aviation Safety Agency 
+(EASA), the manufacturer, the operator, 
+
+5 Stall warning indication is the activation of the 
+stick shaker and other warnings. An airspeed 
+disagree alert, or ‘‘IAS (indicated airspeed) 
+DISAGREE’’ on the 737 MAX, is a visual alert on 
+the airplane’s primary flight displays (PFDs) that 
+the airspeed displayed on the captain’s and first 
+officer’s PFDs, as sensed by the pitot tubes on either 
+side of the airplane, disagree by more than 5 knots 
+for more than 5 seconds. An altitude disagree alert, 
+or ‘‘ALT (altitude) DISAGREE’’ on the 737 MAX, is 
+a visual alert on the PFDs that the altitude, as 
+sensed by the static ports on either side of the 
+airplane, disagree by more than 200 feet for more 
+than 5 seconds. 
+
+6 Flight data recorder (FDR) data from the Lion 
+Air Flight 610 accident airplane indicated that on 
+the flight just prior to the accident flight (Lion Air 
+Flight 043), the airplane experienced the same 
+single erroneously high AOA sensor failure 
+condition upon takeoff that the Lion Air Flight 610 
+crew encountered. The flightcrew on Lion Air 
+Flight 043 was able to maintain continued safe 
+flight and land at their planned destination airport 
+in Jakarta. The flightcrew on Lion Air Flight 043 
+had no prior awareness of this type of failure or 
+how to respond to it. The FAA’s review of these 
+flights and associated risk assessments provided the 
+basis for the revised pilot procedures contained in 
+the interim action of the FAA’s emergency AD; 
+specifically, the rationale was that if pilots were 
+provided awareness of the airplane and flightdeck 
+effects of this specific failure scenario and were 
+provided appropriate instructions via the 
+emergency AD, this would enable appropriate pilot 
+response to the erroneously high AOA failure 
+scenario for the period of time needed to fully 
+eliminate this unsafe condition with a software 
+revision to the flight control computers. 
+
+and the Ethiopian Civil Aviation 
+Authority (ECAA). 
+
+The data from the flight data 
+recorders, as summarized in reports 7 of 
+the Ethiopian Airlines Flight 302 
+accident and the Lion Air Flight 610 
+accident, indicated that if a single 
+erroneously high AOA sensor input is 
+received by the flight control system, 
+the maneuvering characteristics 
+augmentation system (MCAS) 8 can 
+command repeated airplane nose-down 
+trim of the horizontal stabilizer. This 
+unsafe condition, if not addressed, 
+could cause the flightcrew to have 
+difficulty controlling the airplane, and 
+lead to excessive airplane nose-down 
+attitude, significant altitude loss, and 
+impact with terrain. 
+
+To address the unsafe condition, the 
+FAA proposes to require four design 
+changes: (1) Installing updated flight 
+control software (with new control laws) 
+for the FCC operational program 
+software (OPS), (2) installing updated 
+MDS display processing computer 
+(DPC) software to generate an AOA 
+disagree alert,9 (3) revising certain AFM 
+flightcrew operating procedures, and (4) 
+changing the routing of horizontal 
+stabilizer trim wires. The first design 
+change is intended to prevent erroneous 
+MCAS activation. The second design 
+change alerts the pilots that the 
+airplane’s two AOA sensors are 
+disagreeing by a certain amount 
+indicating a potential AOA sensor 
+failure. The third design change is 
+intended to ensure that the flightcrew 
+has the means to recognize and respond 
+to erroneous stabilizer movement and 
+the effects of a potential AOA sensor 
+failure. The fourth design change is 
+intended to restore compliance with the 
+FAA’s latest wire separation safety 
+standards. 
+
+In addition to these four design 
+changes, the FAA also proposes to 
+
+7 Ethiopian Aircraft Accident Investigation 
+Preliminary Report AI–01/19, dated March 2019, 
+and the Ethiopian Interim Investigation Report of 
+accident MAX–8 ET–AVJ, ET–302, dated March 
+2020, can be found in the AD docket. 
+8 MCAS is a function of the Speed Trim System 
+(STS), which is part of the airplane’s flight control 
+system. The STS provides automatic trim inputs to 
+the horizontal stabilizer during manual flight. The 
+STS uses data from a variety of sources, such as 
+pitot tubes and the AOA sensors, to calculate when 
+to make commands. MCAS is activated only during 
+manual flight, with flaps up, and when the AOA 
+sensors detect that the airplane is flying with a high 
+AOA, such as when climbing aggressively or 
+performing excessively tight turns with high bank 
+angles. MCAS makes pitch trim commands to the 
+horizontal stabilizer during a high AOA event so 
+that the 737 MAX handling qualities are compliant 
+with FAA regulations (including 14 CFR 25.173). 
+
+9 An AOA disagree alert, or ‘‘AOA DISAGREE’’ on 
+the 737 MAX, is a visual alert on the airplane’s 
+PFDs that alerts the flightcrew of a disagreement 
+between the angles of attack measured by each of 
+the airplane’s two AOA sensors. 
+
+VerDate Sep<11>2014 
+16:21 Aug 05, 2020
+Jkt 250001
+PO 00000
+Frm 00002
+Fmt 4702
+Sfmt 4702
+E:\FR\FM\06AUP1.SGM
+06AUP1

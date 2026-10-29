@@ -1,0 +1,516 @@
+[
+  {
+    "id": "01-word-to-pdf",
+    "tool": "word-to-pdf",
+    "description": "3-page Word report: header/footer, lists, styled table, chart image",
+    "inputs": [
+      "inputs/report.docx"
+    ],
+    "outputs": [
+      "outputs/01-word-to-pdf/report.pdf"
+    ],
+    "seconds": 1.53,
+    "output_bytes": 75161,
+    "status": "ok",
+    "metrics": {
+      "text_recall": 1.0,
+      "pages": 4
+    }
+  },
+  {
+    "id": "02-excel-to-pdf",
+    "tool": "excel-to-pdf",
+    "description": "2 sheets, formulas, € formats, merged header, bar chart",
+    "inputs": [
+      "inputs/invoices.xlsx"
+    ],
+    "outputs": [
+      "outputs/02-excel-to-pdf/invoices.pdf"
+    ],
+    "seconds": 1.45,
+    "output_bytes": 34858,
+    "status": "ok",
+    "metrics": {
+      "text_recall": 1.0,
+      "pages": 2
+    }
+  },
+  {
+    "id": "03-csv-to-pdf",
+    "tool": "excel-to-pdf",
+    "description": "plain CSV",
+    "inputs": [
+      "inputs/weather.csv"
+    ],
+    "outputs": [
+      "outputs/03-csv-to-pdf/weather.pdf"
+    ],
+    "seconds": 1.23,
+    "output_bytes": 13241,
+    "status": "ok",
+    "metrics": {
+      "text_recall": 1.0,
+      "pages": 1
+    }
+  },
+  {
+    "id": "04-powerpoint-to-pdf",
+    "tool": "powerpoint-to-pdf",
+    "description": "16:9 deck: native chart, table, shapes, picture",
+    "inputs": [
+      "inputs/pitch.pptx"
+    ],
+    "outputs": [
+      "outputs/04-powerpoint-to-pdf/pitch.pdf"
+    ],
+    "seconds": 1.42,
+    "output_bytes": 62191,
+    "status": "ok",
+    "metrics": {
+      "text_recall": 1.0,
+      "pages": 5
+    }
+  },
+  {
+    "id": "05-html-folder-to-pdf",
+    "tool": "html-to-pdf",
+    "description": "local website folder (CSS grid, SVG, JS canvas), Chromium, A4 print",
+    "inputs": [
+      "inputs/website"
+    ],
+    "outputs": [
+      "outputs/05-html-folder-to-pdf/website-a4.pdf"
+    ],
+    "seconds": 2.09,
+    "output_bytes": 121015,
+    "status": "ok",
+    "metrics": {
+      "text_recall": 0.968,
+      "pages": 2,
+      "javascript_ran": true
+    }
+  },
+  {
+    "id": "06-html-single-page",
+    "tool": "html-to-pdf",
+    "description": "same site as one long page, screen CSS",
+    "inputs": [
+      "inputs/website"
+    ],
+    "outputs": [
+      "outputs/06-html-single-page/website-single.pdf"
+    ],
+    "seconds": 2.09,
+    "output_bytes": 123206,
+    "status": "ok",
+    "metrics": {
+      "text_recall": 0.987,
+      "pages": 1,
+      "javascript_ran": true
+    }
+  },
+  {
+    "id": "07-html-weasyprint",
+    "tool": "html-to-pdf",
+    "description": "same site with the no-browser fallback engine",
+    "inputs": [
+      "inputs/website"
+    ],
+    "outputs": [
+      "outputs/07-html-weasyprint/website-weasyprint.pdf"
+    ],
+    "seconds": 1.37,
+    "output_bytes": 59854,
+    "status": "ok",
+    "metrics": {
+      "text_recall": 0.974,
+      "pages": 2,
+      "javascript_ran": false
+    }
+  },
+  {
+    "id": "08-html-invoice",
+    "tool": "html-to-pdf",
+    "description": "single .html with @page rules and a forced page break",
+    "inputs": [
+      "inputs/invoice.html"
+    ],
+    "outputs": [
+      "outputs/08-html-invoice/invoice.pdf"
+    ],
+    "seconds": 2.06,
+    "output_bytes": 29577,
+    "status": "ok",
+    "metrics": {
+      "text_recall": 0.998,
+      "pages": 2
+    }
+  },
+  {
+    "id": "09-images-to-pdf",
+    "tool": "jpg-to-pdf",
+    "description": "WEBP + JPG + transparent PNG + EXIF-rotated photo → A4",
+    "inputs": [
+      "inputs/landscape.webp",
+      "inputs/landscape-small.jpg",
+      "inputs/logo-transparent.png",
+      "inputs/exif-rotated.jpg"
+    ],
+    "outputs": [
+      "outputs/09-images-to-pdf/images.pdf"
+    ],
+    "seconds": 0.08,
+    "output_bytes": 145856,
+    "status": "ok",
+    "metrics": {
+      "pages": 4,
+      "page_sizes": [
+        "842x595"
+      ]
+    }
+  },
+  {
+    "id": "10-tiff-fax-to-pdf",
+    "tool": "jpg-to-pdf",
+    "description": "multi-page Group-4 TIFF",
+    "inputs": [
+      "inputs/fax-3-pages.tiff"
+    ],
+    "outputs": [
+      "outputs/10-tiff-fax-to-pdf/fax.pdf"
+    ],
+    "seconds": 0.03,
+    "output_bytes": 602263,
+    "status": "ok",
+    "metrics": {
+      "pages": 3,
+      "page_sizes": [
+        "595x842"
+      ]
+    }
+  },
+  {
+    "id": "11-scan-photo-to-pdf",
+    "tool": "scan-to-pdf",
+    "description": "tilted, unevenly lit phone photo → clean B&W + OCR",
+    "inputs": [
+      "inputs/phone-photo-of-document.jpg"
+    ],
+    "outputs": [
+      "outputs/11-scan-photo-to-pdf/scan.pdf"
+    ],
+    "seconds": 2.76,
+    "output_bytes": 109516,
+    "status": "ok",
+    "metrics": {
+      "searchable_words": 176
+    }
+  },
+  {
+    "id": "12-markdown-to-pdf",
+    "tool": "markdown-to-pdf",
+    "description": "Markdown: table, code, task list, image",
+    "inputs": [
+      "inputs/README-sample.md"
+    ],
+    "outputs": [
+      "outputs/12-markdown-to-pdf/readme.pdf"
+    ],
+    "seconds": 2.06,
+    "output_bytes": 93673,
+    "status": "ok",
+    "metrics": {
+      "text_recall": 0.944,
+      "pages": 2
+    }
+  },
+  {
+    "id": "13-text-to-pdf",
+    "tool": "text-to-pdf",
+    "description": "260-line log file",
+    "inputs": [
+      "inputs/server.log"
+    ],
+    "outputs": [
+      "outputs/13-text-to-pdf/server-log.pdf"
+    ],
+    "seconds": 0.01,
+    "output_bytes": 228412,
+    "status": "ok",
+    "metrics": {
+      "text_recall": 1.0,
+      "pages": 10
+    }
+  },
+  {
+    "id": "14-rtf-to-pdf",
+    "tool": "office-to-pdf",
+    "description": "RTF letter via the generic LibreOffice converter",
+    "inputs": [
+      "inputs/letter.rtf"
+    ],
+    "outputs": [
+      "outputs/14-rtf-to-pdf/letter.pdf"
+    ],
+    "seconds": 1.37,
+    "output_bytes": 27860,
+    "status": "ok",
+    "metrics": {
+      "text_recall": 1.0,
+      "pages": 1
+    }
+  },
+  {
+    "id": "15-pdf-to-jpg",
+    "tool": "pdf-to-jpg",
+    "description": "real 3-column Federal Register pages → JPG",
+    "inputs": [
+      "inputs/realworld/federal-register-2020-17221.pdf"
+    ],
+    "outputs": [
+      "outputs/15-pdf-to-jpg/federal-register-jpg/federal-register-2020-17221_01.jpg",
+      "outputs/15-pdf-to-jpg/federal-register-jpg/federal-register-2020-17221_02.jpg"
+    ],
+    "seconds": 0.05,
+    "output_bytes": 942240,
+    "status": "ok",
+    "metrics": {
+      "files": 2
+    }
+  },
+  {
+    "id": "16-pdf-extract-images",
+    "tool": "pdf-to-jpg",
+    "description": "pull the embedded chart back out of the Word-made PDF",
+    "inputs": [
+      "outputs/01-word-to-pdf/report.pdf"
+    ],
+    "outputs": [
+      "outputs/16-pdf-extract-images/report-images/report_p1_img111.png"
+    ],
+    "seconds": 0.01,
+    "output_bytes": 15947,
+    "status": "ok",
+    "metrics": {
+      "files": 1
+    }
+  },
+  {
+    "id": "17-pdf-to-word-realworld",
+    "tool": "pdf-to-word",
+    "description": "real multi-column government notice → DOCX",
+    "inputs": [
+      "inputs/realworld/federal-register-2020-17221.pdf"
+    ],
+    "outputs": [
+      "outputs/17-pdf-to-word-realworld/federal-register.docx"
+    ],
+    "seconds": 32.73,
+    "output_bytes": 58856,
+    "status": "ok",
+    "metrics": {
+      "text_recall": 0.971,
+      "visual_similarity": 0.905
+    }
+  },
+  {
+    "id": "18-pdf-to-word-roundtrip",
+    "tool": "pdf-to-word",
+    "description": "round trip DOCX → PDF → DOCX",
+    "inputs": [
+      "outputs/01-word-to-pdf/report.pdf"
+    ],
+    "outputs": [
+      "outputs/18-pdf-to-word-roundtrip/report-roundtrip.docx"
+    ],
+    "seconds": 0.45,
+    "output_bytes": 49589,
+    "status": "ok",
+    "metrics": {
+      "text_recall": 1.0,
+      "visual_similarity": 0.989
+    }
+  },
+  {
+    "id": "19-pdf-to-pptx-image",
+    "tool": "pdf-to-powerpoint",
+    "description": "round trip, image mode (pixel-exact, text in notes)",
+    "inputs": [
+      "outputs/04-powerpoint-to-pdf/pitch.pdf"
+    ],
+    "outputs": [
+      "outputs/19-pdf-to-pptx-image/pitch-image.pptx"
+    ],
+    "seconds": 0.41,
+    "output_bytes": 287401,
+    "status": "ok",
+    "metrics": {
+      "text_recall": 1.0,
+      "visual_similarity": 0.991
+    }
+  },
+  {
+    "id": "20-pdf-to-pptx-editable",
+    "tool": "pdf-to-powerpoint",
+    "description": "round trip, editable mode (LibreOffice import)",
+    "inputs": [
+      "outputs/04-powerpoint-to-pdf/pitch.pdf"
+    ],
+    "outputs": [
+      "outputs/20-pdf-to-pptx-editable/pitch-editable.pptx"
+    ],
+    "seconds": 1.36,
+    "output_bytes": 38571,
+    "status": "ok",
+    "metrics": {
+      "text_recall": 1.0,
+      "visual_similarity": 0.99
+    }
+  },
+  {
+    "id": "21-pdf-to-excel-nics",
+    "tool": "pdf-to-excel",
+    "description": "real FBI statistics table (55 rows × 25 columns)",
+    "inputs": [
+      "inputs/realworld/nics-background-checks-2015-11.pdf"
+    ],
+    "outputs": [
+      "outputs/21-pdf-to-excel-nics/nics.xlsx"
+    ],
+    "seconds": 0.09,
+    "output_bytes": 11912,
+    "status": "ok",
+    "metrics": {
+      "numeric_cell_recall": 0.99,
+      "sheets": 1,
+      "text_recall": 0.988
+    }
+  },
+  {
+    "id": "22-pdf-to-excel-senate",
+    "tool": "pdf-to-excel",
+    "description": "real Senate ledger, text-aligned columns",
+    "inputs": [
+      "inputs/realworld/senate-expenditures.pdf"
+    ],
+    "outputs": [
+      "outputs/22-pdf-to-excel-senate/senate.xlsx"
+    ],
+    "seconds": 0.02,
+    "output_bytes": 6904,
+    "status": "ok",
+    "metrics": {
+      "numeric_cell_recall": 0.78,
+      "sheets": 1,
+      "text_recall": 0.977
+    }
+  },
+  {
+    "id": "23-pdf-to-excel-roundtrip",
+    "tool": "pdf-to-excel",
+    "description": "round trip XLSX → PDF → XLSX",
+    "inputs": [
+      "outputs/02-excel-to-pdf/invoices.pdf"
+    ],
+    "outputs": [
+      "outputs/23-pdf-to-excel-roundtrip/invoices-roundtrip.xlsx"
+    ],
+    "seconds": 0.04,
+    "output_bytes": 7618,
+    "status": "ok",
+    "metrics": {
+      "numeric_cell_recall": 1.0,
+      "sheets": 1,
+      "text_recall": 0.965
+    }
+  },
+  {
+    "id": "24-pdf-to-pdfa",
+    "tool": "pdf-to-pdfa",
+    "description": "Supreme Court transcript → PDF/A-2b",
+    "inputs": [
+      "inputs/realworld/scotus-transcript-p1.pdf"
+    ],
+    "outputs": [
+      "outputs/24-pdf-to-pdfa/scotus-pdfa.pdf"
+    ],
+    "seconds": 0.09,
+    "output_bytes": 16857,
+    "status": "ok",
+    "metrics": {
+      "pdfa_declared": true,
+      "output_intent": true,
+      "fonts_embedded": "3/3",
+      "text_recall": 1.0
+    }
+  },
+  {
+    "id": "25-pdf-to-text",
+    "tool": "pdf-to-text",
+    "description": "reading order on a 3-column page",
+    "inputs": [
+      "inputs/realworld/federal-register-2020-17221.pdf"
+    ],
+    "outputs": [
+      "outputs/25-pdf-to-text/federal-register.txt"
+    ],
+    "seconds": 0.02,
+    "output_bytes": 16340,
+    "status": "ok",
+    "metrics": {
+      "text_recall": 1.0
+    }
+  },
+  {
+    "id": "26-pdf-to-html",
+    "tool": "pdf-to-html",
+    "description": "transcript → self-contained HTML",
+    "inputs": [
+      "inputs/realworld/scotus-transcript-p1.pdf"
+    ],
+    "outputs": [
+      "outputs/26-pdf-to-html/scotus.html"
+    ],
+    "seconds": 0.01,
+    "output_bytes": 9620,
+    "status": "ok",
+    "metrics": {
+      "text_recall": 1.0
+    }
+  },
+  {
+    "id": "27-pdf-to-markdown",
+    "tool": "pdf-to-markdown",
+    "description": "headings/lists recovered as Markdown",
+    "inputs": [
+      "outputs/01-word-to-pdf/report.pdf"
+    ],
+    "outputs": [
+      "outputs/27-pdf-to-markdown/report.md"
+    ],
+    "seconds": 0.77,
+    "output_bytes": 5299,
+    "status": "ok",
+    "metrics": {
+      "text_recall": 0.964
+    }
+  },
+  {
+    "id": "28-ocr",
+    "tool": "ocr",
+    "description": "2 noisy, slightly rotated scanned pages → searchable",
+    "inputs": [
+      "inputs/scanned-delivery-notes.pdf"
+    ],
+    "outputs": [
+      "outputs/28-ocr/scanned-ocr.pdf"
+    ],
+    "seconds": 5.97,
+    "output_bytes": 565400,
+    "status": "ok",
+    "metrics": {
+      "ocr_char_accuracy": 0.993,
+      "text_recall": 0.997
+    }
+  }
+]

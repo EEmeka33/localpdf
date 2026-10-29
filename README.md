@@ -25,19 +25,19 @@ localpdf web --open                                # iLovePDF-style UI on http:/
 | Remove pages | `remove-pages` | PyMuPDF |
 | Extract pages | `extract-pages` | PyMuPDF |
 | Organize PDF | `organize` | reorder, duplicate, rotate and insert blank pages in one string |
-| Scan to PDF | `scan-to-pdf` | photos → cleaned PDF, **or a real scanner via SANE**, optional OCR |
+| Scan to PDF | `scan-to-pdf` | photos → straightened, cropped, cleaned PDF, **or a real scanner via SANE**, optional OCR |
 | Compress PDF | `compress` | Ghostscript + PyMuPDF image recompression (keeps the smallest result) |
 | Repair PDF | `repair` | qpdf (pikepdf) → MuPDF → Ghostscript |
-| OCR PDF | `ocr` | OCRmyPDF or Tesseract |
+| OCR PDF | `ocr` | OCRmyPDF or Tesseract (invisible text layer over the untouched scan) |
 | JPG to PDF | `jpg-to-pdf` | JPG, PNG, WEBP, TIFF (multi-page), GIF, HEIC* |
 | Word to PDF | `word-to-pdf` | LibreOffice (doc, docx, odt, rtf…) |
 | PowerPoint to PDF | `powerpoint-to-pdf` | LibreOffice (ppt, pptx, odp…) |
-| Excel to PDF | `excel-to-pdf` | LibreOffice (xls, xlsx, ods, csv…) |
+| Excel to PDF | `excel-to-pdf` | LibreOffice (xls, xlsx, ods, csv…); all columns fit the page width, or one page per sheet |
 | HTML to PDF | `html-to-pdf` | headless Chromium → WeasyPrint → wkhtmltopdf → LibreOffice → MuPDF |
 | PDF to JPG | `pdf-to-jpg` | renders pages (jpg/png/webp/tiff) **or extracts embedded images** |
 | PDF to Word | `pdf-to-word` | pdf2docx (or LibreOffice), output docx/odt/rtf/doc |
 | PDF to PowerPoint | `pdf-to-powerpoint` | exact-looking image slides (text kept in notes), or editable via LibreOffice |
-| PDF to Excel | `pdf-to-excel` | table detection with pdfplumber/PyMuPDF; numbers stay numbers |
+| PDF to Excel | `pdf-to-excel` | word-based table engine (handles borderless, rotated and fake-bold tables); numbers, %, currencies become real numeric cells |
 | PDF to PDF/A | `pdf-to-pdfa` | OCRmyPDF or Ghostscript (PDF/A-1b, 2b, 3b) |
 | Rotate PDF | `rotate` | per page or all pages; several files at once |
 | Add page numbers | `page-numbers` | 9 positions, templates such as `Page {n} of {total}`, facing pages |
@@ -75,6 +75,12 @@ localpdf web --open                                # iLovePDF-style UI on http:/
 | `remove-blank`, `insert-blank` | drop empty pages, or add note-taking pages |
 
 Run `localpdf list` to see every tool, and `localpdf <tool> -h` for its options.
+
+## Examples & evaluation
+
+[`examples/`](examples) contains every conversion run on real-world public-domain PDFs and on realistic generated
+Word/Excel/PowerPoint/HTML/image files. Each one comes with its output, a before/after preview, automatic quality
+metrics and a graded evaluation. See **[examples/README.md](examples/README.md)**.
 
 ## Installation
 
@@ -134,6 +140,7 @@ localpdf html-to-pdf https://example.com --block-ads
 localpdf word-to-pdf *.docx
 localpdf pdf-to-word contract.pdf
 localpdf pdf-to-excel statement.pdf --layout single-sheet
+localpdf excel-to-pdf wide-sheet.xlsx --fit page          # every sheet on one page
 localpdf pdf-to-jpg slides.pdf --dpi 300 --format png
 localpdf pdf-to-jpg brochure.pdf --mode extract           # pull out the original images
 
