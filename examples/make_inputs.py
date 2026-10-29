@@ -324,6 +324,42 @@ td {{ padding: 6px; border-bottom: 1px solid #ddd; }}
 </body></html>""")
 
 
+# ------------------------------------------------------------------ an HTML page designed as a sheet of paper
+def make_resume():
+    """A CV laid out as a 210×297 mm card – with the classic print traps: a responsive breakpoint wider
+    than A4 (so printing switches to the mobile layout) and more content than one page holds."""
+    name = person()
+    skills = "".join(f"<li>{w}</li>" for w in ("Python", "Linux", "Docker", "SQL", "Git", "Networking", "SIEM", "Bash"))
+    jobs = "".join(
+        f"<div class='item'><h3>{rng.choice(['Engineer', 'Analyst', 'Developer', 'Project lead'])}</h3>"
+        f"<div class='meta'><span>{rng.choice(['Helios Energy', 'Nordlicht AG', 'Atelier Rossi'])}</span>"
+        f"<span>{2019 + i} – {2020 + i}</span></div><ul>"
+        + "".join(f"<li>{sentence(rng.randint(10, 16))}</li>" for _ in range(3)) + "</ul></div>" for i in range(6))
+    (OUT / "resume.html").write_text(f"""<!doctype html><html lang="en"><head><meta charset="utf-8">
+<title>{name} – CV</title><style>
+body{{margin:0;background:#fff;color:#1d2a38;font:400 16px/1.5 "Source Sans 3","DejaVu Sans",sans-serif}}
+a{{color:#2a62a0;text-decoration:none}}
+.page{{width:210mm;margin:0 auto}}
+.sheet{{background:#fff;border:1px solid #e3e9f0;width:210mm;min-height:297mm;margin:0 auto}}
+.top{{padding:10mm 10mm 7mm;border-bottom:3px solid #2a62a0}} .top h1{{margin:0;font-size:2rem}}
+.cols{{display:grid;grid-template-columns:60mm 1fr}}
+aside{{background:#f2f6fb;margin:8mm 0 8mm 8mm;padding:14px;border-radius:8px;font-size:.8rem}}
+aside ul{{list-style:none;padding:0;display:flex;flex-wrap:wrap;gap:.3rem}}
+aside li{{background:#fff;border:1px solid #e3e9f0;border-radius:6px;padding:.1rem .45rem}}
+main{{padding:8mm 10mm;font-size:.85rem}} h2{{color:#2a62a0;font-size:1.05rem}}
+.item{{border-left:2px solid #e3e9f0;padding:0 0 .8rem 1.1rem}} .item h3{{margin:0;font-size:.92rem}}
+.meta{{display:flex;justify-content:space-between;color:#66768a;font-size:.78rem}}
+@media screen{{body{{background:#e7ebf1}} .page{{padding:8mm 0}} .sheet{{border-radius:6px;box-shadow:0 6px 28px rgba(29,42,56,.12)}}}}
+@media (max-width:230mm){{.page{{width:100%}} .sheet{{width:100%}} .cols{{grid-template-columns:1fr}}}}
+</style></head><body><div class="page"><article class="sheet">
+<header class="top"><h1>{name}</h1><p>Security engineer · open to new opportunities</p></header>
+<div class="cols"><aside><h2>Contact</h2><p><a href="mailto:jane@example.org">jane@example.org</a><br>
+<a href="https://example.org/portfolio">example.org/portfolio</a></p><h2>Skills</h2><ul>{skills}</ul>
+<h2>Languages</h2><p>English – native<br>French – C1<br>Korean – A1</p></aside>
+<main><h2>Profile</h2><p>{paragraph(4)}</p><h2>Experience</h2>{jobs}</main></div>
+</article></div></body></html>""")
+
+
 # ------------------------------------------------------------------ Markdown, text, RTF
 def make_text_docs():
     rows = "\n".join(f"| {rng.choice(PRODUCTS)} | {rng.randint(1, 99)} | {rng.uniform(1, 999):.2f} |" for _ in range(5))
@@ -462,6 +498,6 @@ def make_scan():
 
 if __name__ == "__main__":
     OUT.mkdir(exist_ok=True)
-    for fn in (make_docx, make_xlsx, make_pptx, make_site, make_text_docs, make_images, make_scan):
+    for fn in (make_docx, make_xlsx, make_pptx, make_site, make_text_docs, make_images, make_scan, make_resume):
         fn()
         print("✔", fn.__name__)

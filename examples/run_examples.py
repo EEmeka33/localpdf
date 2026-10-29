@@ -193,6 +193,8 @@ JOBS = [
     ("06-html-single-page", "html-to-pdf", ["website"], {"paper": "single", "media": "screen"}, "website-single.pdf", "to", "same site as one long page, screen CSS"),
     ("07-html-weasyprint", "html-to-pdf", ["website"], {"engine": "weasyprint"}, "website-weasyprint.pdf", "to", "same site with the no-browser fallback engine"),
     ("08-html-invoice", "html-to-pdf", ["invoice.html"], {}, "invoice.pdf", "to", "single .html with @page rules and a forced page break"),
+    ("08b-html-designed-sheet", "html-to-pdf", ["resume.html"], {}, "resume.pdf", "to",
+     "CV designed as a 210×297 mm card, responsive breakpoint wider than A4, overflowing content"),
     ("09-images-to-pdf", "jpg-to-pdf", ["landscape.webp", "landscape-small.jpg", "logo-transparent.png", "exif-rotated.jpg"],
      {"page_size": "a4", "margin": "small"}, "images.pdf", "to", "WEBP + JPG + transparent PNG + EXIF-rotated photo → A4"),
     ("10-tiff-fax-to-pdf", "jpg-to-pdf", ["fax-3-pages.tiff"], {}, "fax.pdf", "to", "multi-page Group-4 TIFF"),
@@ -316,6 +318,13 @@ def score(job, inputs, produced) -> dict:
     m["text_recall"] = recall(source_text(src, opts), text_of(main))
     if main.suffix == ".pdf":
         m["pages"] = fitz.open(main).page_count
+    if jid == "08b-html-designed-sheet":
+        page = fitz.open(main)[0]
+        m["page_mm"] = f"{page.rect.width / 72 * 25.4:.0f}x{page.rect.height / 72 * 25.4:.0f}"
+        m["links_kept"] = len(page.get_links())
+        side = next(w for w in page.get_text("words") if w[4] == "Contact")
+        prof = next(w for w in page.get_text("words") if w[4] == "Profile")
+        m["two_column_layout"] = side[2] < prof[0]
     if jid.startswith(("05", "06", "07")):
         m["javascript_ran"] = "inserted by JavaScript" in text_of(main)
     if jid in ("18-pdf-to-word-roundtrip", "20-pdf-to-pptx-editable", "19-pdf-to-pptx-image", "23-pdf-to-excel-roundtrip",

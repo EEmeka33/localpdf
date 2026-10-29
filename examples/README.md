@@ -9,7 +9,7 @@ python examples/make_inputs.py     # regenerate the synthetic documents (fixed r
 ```
 
 ```bash
-python examples/run_examples.py    # run all 28 jobs → outputs/, previews/, RESULTS.md, results.json
+python examples/run_examples.py    # run all 29 jobs → outputs/, previews/, RESULTS.md, results.json
 ```
 
 ## The test documents
@@ -31,6 +31,7 @@ messy files that break converters.
 - a 2-sheet Excel workbook (formulas, € formats, merged title, native chart) and a CSV
 - a 16:9 PowerPoint deck (native chart, table, shapes, picture)
 - a small **website folder** (CSS grid, SVG logo, a canvas chart drawn by JavaScript) and an invoice `.html` with `@page` rules
+- a CV laid out as an A4 card in HTML (responsive breakpoint wider than A4, more content than one page)
 - Markdown, a 260-line log file and an RTF letter
 - images: WEBP, JPEG, a transparent PNG, a photo with an EXIF rotation flag, and a 3-page Group-4 fax TIFF
 - a **phone photo of a document** (tilted, unevenly lit, on a desk) and a noisy **2-page scan** with its ground-truth text
@@ -53,6 +54,7 @@ Grades are my visual judgement of the output: **A** = you would ship it, **B** =
 | 06 | [HTML → one long page](previews/06-html-single-page.jpg) | [website-single.pdf](outputs/06-html-single-page/website-single.pdf) | 1 page · JS ran ✔ | **A** | Screen CSS, like a full-page screenshot but with selectable text. *Fixed:* the page came out slightly too short and spilled onto a 2nd page. |
 | 07 | [HTML via WeasyPrint](previews/07-html-weasyprint.jpg) | [website-weasyprint.pdf](outputs/07-html-weasyprint/website-weasyprint.pdf) | JS ran ✘ | **B** | The fallback engine for when there is no browser: CSS layout is excellent but it cannot run JavaScript, so the canvas chart is empty. |
 | 08 | [Invoice .html → PDF](previews/08-html-invoice.jpg) | [invoice.pdf](outputs/08-html-invoice/invoice.pdf) | text 100% · 2 pages | **A** | `@page` size/margins and the forced page break are honoured. |
+| 08b | [CV designed as an A4 card](previews/08b-html-designed-sheet.jpg) | [resume.pdf](outputs/08b-html-designed-sheet/resume.pdf) | 210×297 mm · 2 columns ✔ · links 2/2 | **A** | Rendered exactly like the browser shows it, on one A4 page. *Fixed after a user report:* such pages used to print in their **mobile layout over 2 pages**, because the CSS breakpoint (230 mm) is wider than A4 and the card overflows the page. The card's content is ~24% taller than A4, so it is shrunk to fit (`--sheet-fit grow` keeps 1:1). |
 | 09 | [Images → PDF](previews/09-images-to-pdf.jpg) | [images.pdf](outputs/09-images-to-pdf/images.pdf) | 4 A4 pages | **A** | WEBP, JPEG and transparent PNG work, and the EXIF-rotated photo comes out upright. Each page is turned to landscape automatically to fit its image. |
 | 10 | [Fax TIFF → PDF](previews/10-tiff-fax-to-pdf.jpg) | [fax.pdf](outputs/10-tiff-fax-to-pdf/fax.pdf) | 3 pages | **A** | *Fixed:* this **crashed** ("Overly large image") because the TIFF declares 1 × 1 DPI. Implausible DPI values are now ignored. |
 | 11 | [Phone photo → scan](previews/11-scan-photo-to-pdf.jpg) | [scan.pdf](outputs/11-scan-photo-to-pdf/scan.pdf) | 176 words searchable | **B+** | Lighting flattened to crisp black & white, then OCR. *Fixed:* the page used to stay tilted with a thick black desk border, and OCR found only 36 words. Automatic **deskew** and **crop-to-paper** are new. There is no perspective correction yet, so shoot roughly from above. |
@@ -102,6 +104,8 @@ Grades are my visual judgement of the output: **A** = you would ship it, **B** =
 9. `html-to-pdf --paper single` spilled onto a second page.
 10. `markdown-to-pdf` printed `[x]`, and `text-to-pdf` wrapped lines without an indent.
 11. `pdf-to-markdown` ran OCR and printed engine messages.
+12. `html-to-pdf` printed HTML pages designed as A4 sheets (CVs) in their mobile layout over 2 pages → sheet
+    detection renders them exactly as on screen (`--sheets`, `--sheet-fit`).
 
 ## How the metrics work
 

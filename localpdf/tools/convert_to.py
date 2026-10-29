@@ -198,6 +198,11 @@ HTML_OPTS = [
     Opt("wait", "int", 500, "Extra milliseconds to wait for JavaScript / lazy content."),
     Opt("background", "bool", True, "Print background colours and images."),
     Opt("block_ads", "bool", False, "Try to block common ad / tracker domains when loading URLs."),
+    Opt("sheets", "str", "auto", "Pages designed in HTML (e.g. a CV in a 210×297 mm box): 'auto' detects paper-sized "
+        "elements and turns each into one PDF page exactly as it looks on screen; or give a CSS selector "
+        "(e.g. '.page'); 'off' prints the document normally."),
+    Opt("sheet_fit", "choice", "shrink", "When a sheet's content is taller than its paper: shrink it onto one page, "
+        "or grow the page to keep it 1:1.", ["shrink", "grow"]),
     Opt("engine", "choice", "auto", "Rendering engine.", ["auto", "chromium", "weasyprint", "wkhtmltopdf", "libreoffice", "mupdf"]),
 ]
 
@@ -208,7 +213,7 @@ HTML_OPTS = [
     accept=HTML_EXTS + (".zip",), allow_url=True, requires=("chromium", "weasyprint"), opts=HTML_OPTS,
 )
 def html_to_pdf(inputs, output: Path, paper="a4", orientation="portrait", margin="small", media="print", width=1280,
-                wait=500, background=True, block_ads=False, engine="auto"):
+                wait=500, background=True, block_ads=False, sheets="auto", sheet_fit="shrink", engine="auto"):
     source = inputs[0]
     with tempdir() as tmp:
         url = _resolve_html_source(source, tmp)
@@ -222,7 +227,8 @@ def html_to_pdf(inputs, output: Path, paper="a4", orientation="portrait", margin
             try:
                 output.parent.mkdir(parents=True, exist_ok=True)
                 fn(url, output, paper=paper, orientation=orientation, margin=MARGINS[margin], media=media,
-                   width=width, wait=wait, background=background, block_ads=block_ads)
+                   width=width, wait=wait, background=background, block_ads=block_ads, sheets=sheets,
+                   sheet_fit=sheet_fit)
                 if engine == "auto" and eng != "chromium":
                     print(f"(rendered with {eng})")
                 return [output]
@@ -268,7 +274,50 @@ AD_HOSTS = ("doubleclick.net", "googlesyndication.com", "google-analytics.com", 
             "adservice.google", "facebook.net", "scorecardresearch.com", "taboola.com", "outbrain.com", "criteo")
 
 
-def _chromium(url, output, paper, orientation, margin, media, width, wait, background, block_ads):
+# Finds the elements that are designed to *be* a page: as wide as a sheet of paper (A4, Letter…, either
+# orientation) and as tall – or declaring that height with `min-height`, the usual way to write a page whose
+# content may grow. Among nested candidates (wrapper, sheet, a column inside it) the closest match wins.
+# Each match is tagged with the paper height it was designed for.
+FIND_SHEETS_JS = """(selector) => {
+  const MM = 96 / 25.4;
+  const PAPERS = [[210, 297], [215.9, 279.4], [215.9, 355.6], [297, 420], [148, 210]];
+  const match = e => {
+    const r = e.getBoundingClientRect(), w = r.width / MM, h = r.height / MM;
+    const minH = parseFloat(getComputedStyle(e).minHeight) / MM || 0;
+    let best = null;
+    for (const [a, b] of PAPERS) for (const [pw, ph] of [[a, b], [b, a]]) {
+      if (Math.abs(w - pw) >= 2.5) continue;
+      const declared = Math.abs(minH - ph) < 2.5;
+      if (!declared && !(h > ph * 0.9 && h < ph * 1.6)) continue;
+      const err = Math.abs(w - pw) / pw + (declared ? 0 : Math.abs(h - ph) / ph);
+      if (!best || err < best.err) best = {err, pw, ph};
+    }
+    return best;
+  };
+  let els = [];
+  if (selector === 'auto') {
+    const cands = [...document.querySelectorAll('body *')].map(e => [e, match(e)]).filter(([, m]) => m);
+    for (const [e, m] of cands)
+      if (!cands.some(([o, n]) => o !== e && (o.contains(e) || e.contains(o)) && n.err < m.err)) {
+        e.setAttribute('data-localpdf-sheet', `${(m.pw * MM).toFixed(2)},${(m.ph * MM).toFixed(2)}`);
+        els.push(e);
+      }
+  } else {
+    els = [...document.querySelectorAll(selector)];
+    els.forEach(e => e.setAttribute('data-localpdf-sheet',
+      `${e.getBoundingClientRect().width.toFixed(2)},${(parseFloat(getComputedStyle(e).minHeight) || 0).toFixed(2)}`));
+  }
+  return els.length;
+}"""
+SHEET_BOXES_JS = """() => [...document.querySelectorAll('[data-localpdf-sheet]')].map(e => {
+  const r = e.getBoundingClientRect();
+  const [pw, ph] = e.dataset.localpdfSheet.split(',').map(Number);
+  return [r.left + window.scrollX, r.top + window.scrollY, r.width, r.height, pw, ph];
+})"""
+
+
+def _chromium(url, output, paper, orientation, margin, media, width, wait, background, block_ads, sheets="auto",
+             sheet_fit="shrink"):
     try:
         from playwright.sync_api import sync_playwright
     except ImportError as e:
@@ -292,7 +341,12 @@ def _chromium(url, output, paper, orientation, margin, media, width, wait, backg
             # trigger lazy-loaded images
             page.evaluate("""async () => { for (let y = 0; y < document.body.scrollHeight; y += 800) {
                 window.scrollTo(0, y); await new Promise(r => setTimeout(r, 50)); } window.scrollTo(0, 0); }""")
+            page.evaluate("async () => { await document.fonts.ready; }")
             page.wait_for_timeout(wait)
+            if sheets and sheets != "off" and paper != "single" and _print_sheets(page, sheets, output, sheet_fit):
+                browser.close()
+                return
+            page.emulate_media(media=media)
             m = f"{margin / 72:.3f}in"  # Playwright accepts px/in/cm/mm, not pt
             opts = dict(path=str(output), print_background=background, margin=dict(top=m, bottom=m, left=m, right=m))
             if paper == "single":
@@ -313,6 +367,70 @@ def _chromium(url, output, paper, orientation, margin, media, width, wait, backg
         if "Executable doesn't exist" in str(e) or "playwright install" in str(e):
             raise _Unavailable("Chromium not downloaded – run `playwright install chromium`") from e
         raise ToolError(f"Chromium failed to render the page: {e}") from e
+
+
+def _print_sheets(page, selector, output, fit="shrink") -> bool:
+    """Render HTML 'sheets' exactly as the browser shows them, one PDF page per sheet.
+
+    Printing normally re-lays the document out at the paper width: a 210 mm sheet doesn't fit inside
+    A4 minus margins, and responsive CSS (`@media (max-width: …)`) switches to the mobile layout.
+    So the page is rendered as one tall screen-media page at the viewport width (identical layout),
+    and each sheet is cut out of it. A sheet whose content grew taller than its paper is shrunk onto
+    the paper (fit="shrink") or kept 1:1 on a taller page (fit="grow").
+    """
+    page.emulate_media(media="screen")
+    try:
+        count = page.evaluate(FIND_SHEETS_JS, selector)
+    except Exception as e:  # noqa: BLE001 – invalid CSS selector
+        raise ToolError(f"invalid --sheets selector {selector!r}: {e}") from None
+    if not count:
+        if selector != "auto":
+            raise ToolError(f"no element matches --sheets {selector!r}")
+        return False
+    # paper has no drop shadow or rounded corners
+    page.add_style_tag(content="[data-localpdf-sheet]{box-shadow:none!important;border-radius:0!important}")
+    boxes = page.evaluate(SHEET_BOXES_JS)
+    size = page.evaluate("[document.documentElement.scrollWidth, document.documentElement.scrollHeight]")
+    px = 72 / 96  # CSS px → PDF points
+    notes = []
+    with tempdir() as tmp:
+        full = tmp / "full.pdf"
+        page.pdf(path=str(full), width=f"{size[0]}px", height=f"{size[1] + 1}px", print_background=True,
+                 margin=dict(top="0", bottom="0", left="0", right="0"))
+        src = fitz.open(full)
+        out = fitz.open()
+        for x, y, w, h, paper_w, paper_h in boxes:
+            clip = fitz.Rect(x * px, y * px, (x + w) * px, (y + h) * px) & src[0].rect
+            if paper_h and h > paper_h + 4 and fit == "shrink":
+                target = out.new_page(width=paper_w * px, height=paper_h * px)  # exactly the paper size
+                _place_with_links(target, src[0], clip)
+                notes.append(f"sheet {len(out)} is {h / paper_h:.0%} of its paper height – shrunk to "
+                             f"{paper_h / h:.0%} to fit one page (--sheet-fit grow keeps it 1:1 on a taller page)")
+            else:
+                out.insert_pdf(src, from_page=0, to_page=0)
+                out[-1].set_cropbox(clip)
+        out.save(output, garbage=3, deflate=True)
+    print(f"(rendered {count} page-sized element(s) exactly as on screen – use --sheets off to print normally)")
+    for n in notes:
+        print(f"note: {n}")
+    return True
+
+
+def _place_with_links(target, src_page, clip):
+    """Draw `clip` of src_page scaled into target (vector), centred, and carry the links across."""
+    target.show_pdf_page(target.rect, src_page.parent, src_page.number, clip=clip, keep_proportion=True)
+    k = min(target.rect.width / clip.width, target.rect.height / clip.height)
+    dx = (target.rect.width - clip.width * k) / 2
+    dy = (target.rect.height - clip.height * k) / 2
+    for link in src_page.get_links():
+        r = fitz.Rect(link["from"])
+        if not r.intersects(clip):
+            continue
+        link = dict(link, **{"from": fitz.Rect((r.x0 - clip.x0) * k + dx, (r.y0 - clip.y0) * k + dy,
+                                               (r.x1 - clip.x0) * k + dx, (r.y1 - clip.y0) * k + dy)})
+        link.pop("xref", None)
+        link.pop("id", None)
+        target.insert_link(link)
 
 
 def _page_css(paper, orientation, margin):

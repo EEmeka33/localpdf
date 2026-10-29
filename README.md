@@ -57,6 +57,7 @@ localpdf web --open                                # iLovePDF-style UI on http:/
 | Command | What it does |
 |---|---|
 | `html-to-pdf` **with local files** | `.html` files, whole folders (`index.html` plus CSS, images and JS), zipped sites, single long page mode, screen/print CSS, ad blocking |
+| `html-to-pdf` **designed pages** | HTML laid out as sheets of paper (CVs, invoices, reports in a 210×297 mm box) is detected and printed **exactly as the browser shows it**, one PDF page per sheet, with links kept |
 | `markdown-to-pdf` | Markdown with GitHub-like styling, tables and code highlighting |
 | `text-to-pdf` | text, logs and source code → paginated monospace PDF, optional line numbers |
 | `office-to-pdf` | anything LibreOffice opens (ODG, VSD, PUB, EPUB, WPS…) |
@@ -135,6 +136,9 @@ localpdf scan-to-pdf --scanner --pages-to-scan 3 -o scan.pdf
 
 # Convert
 localpdf html-to-pdf report.html                          # CSS, images and JS from the folder work
+localpdf html-to-pdf cv.html                              # an A4 "sheet" in HTML → that sheet, as on screen
+localpdf html-to-pdf cv.html --sheet-fit grow             # keep 1:1 size if the content overflows A4
+localpdf html-to-pdf cv.html --sheets off                 # ignore the sheet and print the document normally
 localpdf html-to-pdf ./site/ --media screen --paper single
 localpdf html-to-pdf https://example.com --block-ads
 localpdf word-to-pdf *.docx
@@ -194,6 +198,19 @@ localpdf summarize report.pdf --engine ollama
 ```
 
 Use the `LOCALPDF_MODEL` and `OLLAMA_HOST` environment variables to change the defaults. For offline neural translation without Ollama, run `pip install argostranslate`. The language model is downloaded once, the first time you use it.
+
+### HTML pages designed as paper (CVs, invoices…)
+
+Many HTML documents draw an A4 "sheet" on screen, often with `width:210mm; min-height:297mm`. Printing such
+a page the usual way breaks it. The browser lays the document out again at the paper width, the 210 mm sheet doesn't
+fit inside A4 minus margins, and responsive CSS (`@media (max-width: …)`) switches to the mobile layout. You end up
+with a one-column, two-page PDF that looks nothing like the screen.
+
+`html-to-pdf` detects these sheets (`--sheets auto`, the default). It renders the page exactly as the browser
+displays it, at full width, and turns each sheet into one PDF page of the exact paper size. Text stays selectable
+and links stay clickable. If the content is taller than the sheet's paper (it overflows A4 on screen too),
+`--sheet-fit shrink` (default) scales it onto one page and tells you by how much; `--sheet-fit grow` keeps it
+1:1 on a taller page. Use `--sheets ".my-page"` to pick the sheets yourself, or `--sheets off` to print the document normally.
 
 ## Configuration
 

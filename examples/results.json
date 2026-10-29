@@ -9,7 +9,7 @@
     "outputs": [
       "outputs/01-word-to-pdf/report.pdf"
     ],
-    "seconds": 1.53,
+    "seconds": 1.43,
     "output_bytes": 75161,
     "status": "ok",
     "metrics": {
@@ -27,7 +27,7 @@
     "outputs": [
       "outputs/02-excel-to-pdf/invoices.pdf"
     ],
-    "seconds": 1.45,
+    "seconds": 1.31,
     "output_bytes": 34858,
     "status": "ok",
     "metrics": {
@@ -45,7 +45,7 @@
     "outputs": [
       "outputs/03-csv-to-pdf/weather.pdf"
     ],
-    "seconds": 1.23,
+    "seconds": 1.15,
     "output_bytes": 13241,
     "status": "ok",
     "metrics": {
@@ -63,7 +63,7 @@
     "outputs": [
       "outputs/04-powerpoint-to-pdf/pitch.pdf"
     ],
-    "seconds": 1.42,
+    "seconds": 1.6,
     "output_bytes": 62191,
     "status": "ok",
     "metrics": {
@@ -81,7 +81,7 @@
     "outputs": [
       "outputs/05-html-folder-to-pdf/website-a4.pdf"
     ],
-    "seconds": 2.09,
+    "seconds": 2.24,
     "output_bytes": 121015,
     "status": "ok",
     "metrics": {
@@ -100,7 +100,7 @@
     "outputs": [
       "outputs/06-html-single-page/website-single.pdf"
     ],
-    "seconds": 2.09,
+    "seconds": 2.12,
     "output_bytes": 123206,
     "status": "ok",
     "metrics": {
@@ -119,8 +119,8 @@
     "outputs": [
       "outputs/07-html-weasyprint/website-weasyprint.pdf"
     ],
-    "seconds": 1.37,
-    "output_bytes": 59854,
+    "seconds": 1.51,
+    "output_bytes": 59856,
     "status": "ok",
     "metrics": {
       "text_recall": 0.974,
@@ -138,12 +138,33 @@
     "outputs": [
       "outputs/08-html-invoice/invoice.pdf"
     ],
-    "seconds": 2.06,
+    "seconds": 1.94,
     "output_bytes": 29577,
     "status": "ok",
     "metrics": {
       "text_recall": 0.998,
       "pages": 2
+    }
+  },
+  {
+    "id": "08b-html-designed-sheet",
+    "tool": "html-to-pdf",
+    "description": "CV designed as a 210×297 mm card, responsive breakpoint wider than A4, overflowing content",
+    "inputs": [
+      "inputs/resume.html"
+    ],
+    "outputs": [
+      "outputs/08b-html-designed-sheet/resume.pdf"
+    ],
+    "seconds": 2.1,
+    "output_bytes": 36404,
+    "status": "ok",
+    "metrics": {
+      "text_recall": 0.992,
+      "pages": 1,
+      "page_mm": "210x297",
+      "links_kept": 2,
+      "two_column_layout": true
     }
   },
   {
@@ -199,7 +220,7 @@
     "outputs": [
       "outputs/11-scan-photo-to-pdf/scan.pdf"
     ],
-    "seconds": 2.76,
+    "seconds": 2.65,
     "output_bytes": 109516,
     "status": "ok",
     "metrics": {
@@ -216,7 +237,7 @@
     "outputs": [
       "outputs/12-markdown-to-pdf/readme.pdf"
     ],
-    "seconds": 2.06,
+    "seconds": 2.19,
     "output_bytes": 93673,
     "status": "ok",
     "metrics": {
@@ -234,7 +255,7 @@
     "outputs": [
       "outputs/13-text-to-pdf/server-log.pdf"
     ],
-    "seconds": 0.01,
+    "seconds": 0.03,
     "output_bytes": 228412,
     "status": "ok",
     "metrics": {
@@ -252,7 +273,7 @@
     "outputs": [
       "outputs/14-rtf-to-pdf/letter.pdf"
     ],
-    "seconds": 1.37,
+    "seconds": 1.28,
     "output_bytes": 27860,
     "status": "ok",
     "metrics": {
@@ -271,7 +292,7 @@
       "outputs/15-pdf-to-jpg/federal-register-jpg/federal-register-2020-17221_01.jpg",
       "outputs/15-pdf-to-jpg/federal-register-jpg/federal-register-2020-17221_02.jpg"
     ],
-    "seconds": 0.05,
+    "seconds": 0.04,
     "output_bytes": 942240,
     "status": "ok",
     "metrics": {
@@ -305,7 +326,7 @@
     "outputs": [
       "outputs/17-pdf-to-word-realworld/federal-register.docx"
     ],
-    "seconds": 32.73,
+    "seconds": 32.17,
     "output_bytes": 58856,
     "status": "ok",
     "metrics": {
@@ -323,7 +344,7 @@
     "outputs": [
       "outputs/18-pdf-to-word-roundtrip/report-roundtrip.docx"
     ],
-    "seconds": 0.45,
+    "seconds": 0.61,
     "output_bytes": 49589,
     "status": "ok",
     "metrics": {
@@ -341,7 +362,7 @@
     "outputs": [
       "outputs/19-pdf-to-pptx-image/pitch-image.pptx"
     ],
-    "seconds": 0.41,
+    "seconds": 0.31,
     "output_bytes": 287401,
     "status": "ok",
     "metrics": {
@@ -359,7 +380,7 @@
     "outputs": [
       "outputs/20-pdf-to-pptx-editable/pitch-editable.pptx"
     ],
-    "seconds": 1.36,
+    "seconds": 1.37,
     "output_bytes": 38571,
     "status": "ok",
     "metrics": {
@@ -377,8 +398,8 @@
     "outputs": [
       "outputs/21-pdf-to-excel-nics/nics.xlsx"
     ],
-    "seconds": 0.09,
-    "output_bytes": 11912,
+    "seconds": 0.06,
+    "output_bytes": 11913,
     "status": "ok",
     "metrics": {
       "numeric_cell_recall": 0.99,
@@ -396,8 +417,8 @@
     "outputs": [
       "outputs/22-pdf-to-excel-senate/senate.xlsx"
     ],
-    "seconds": 0.02,
-    "output_bytes": 6904,
+    "seconds": 0.03,
+    "output_bytes": 6905,
     "status": "ok",
     "metrics": {
       "numeric_cell_recall": 0.78,
@@ -415,8 +436,8 @@
     "outputs": [
       "outputs/23-pdf-to-excel-roundtrip/invoices-roundtrip.xlsx"
     ],
-    "seconds": 0.04,
-    "output_bytes": 7618,
+    "seconds": 0.05,
+    "output_bytes": 7619,
     "status": "ok",
     "metrics": {
       "numeric_cell_recall": 1.0,
@@ -454,7 +475,7 @@
     "outputs": [
       "outputs/25-pdf-to-text/federal-register.txt"
     ],
-    "seconds": 0.02,
+    "seconds": 0.01,
     "output_bytes": 16340,
     "status": "ok",
     "metrics": {
@@ -488,7 +509,7 @@
     "outputs": [
       "outputs/27-pdf-to-markdown/report.md"
     ],
-    "seconds": 0.77,
+    "seconds": 0.78,
     "output_bytes": 5299,
     "status": "ok",
     "metrics": {
@@ -505,7 +526,7 @@
     "outputs": [
       "outputs/28-ocr/scanned-ocr.pdf"
     ],
-    "seconds": 5.97,
+    "seconds": 5.59,
     "output_bytes": 565400,
     "status": "ok",
     "metrics": {

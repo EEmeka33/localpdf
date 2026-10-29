@@ -601,3 +601,67 @@ def test_html_single_page_is_one_page(samples, tmp_path):
     out = _chromium_or_skip(lambda: run("html-to-pdf", [long_page], tmp_path / "s.pdf", engine="chromium",
                                         paper="single", margin="big")[0])
     assert fitz.open(out).page_count == 1
+
+
+# ------------------------------------------------------------------ HTML documents designed as sheets of paper
+SHEET_CSS = """
+body{margin:0;background:#ccc;font:16px sans-serif}
+.page{width:210mm;margin:8mm auto}
+.sheet{background:#fff;width:210mm;min-height:297mm;box-shadow:0 4px 20px #0005;border-radius:6px}
+.cols{display:grid;grid-template-columns:60mm 1fr}
+aside{background:#eef;padding:6mm}
+main{padding:6mm}
+@media (max-width:230mm){.cols{grid-template-columns:1fr}}   /* the trap: A4 is narrower than 230 mm */
+"""
+
+
+def _sheet_html(tmp_path, paragraphs=6, sheets=1):
+    body = "".join(
+        f"<div class='page'><div class='sheet'><div class='cols'><aside>SIDEBAR{n} <a href='https://example.org/{n}'>"
+        f"link</a></aside><main>MAIN{n} " + "<p>" + ("lorem ipsum dolor sit amet " * 40 + "</p><p>") * paragraphs + "</p>"
+        + "</main></div></div></div>" for n in range(sheets))
+    p = tmp_path / "sheet.html"
+    p.write_text(f"<!doctype html><html><head><style>{SHEET_CSS}</style></head><body>{body}</body></html>")
+    return p
+
+
+def _desktop_layout(page, n=0):
+    """Sidebar beside the main column (two-column layout), not stacked above it."""
+    words = {w[4]: fitz.Rect(w[:4]) for w in page.get_text("words")}
+    side, main = words[f"SIDEBAR{n}"], words[f"MAIN{n}"]
+    return side.x1 < main.x0 and abs(side.y0 - main.y0) < 30
+
+
+def test_html_sheet_rendered_like_on_screen(tmp_path):
+    pytest.importorskip("playwright")
+    src = _sheet_html(tmp_path, paragraphs=2)
+    out = _chromium_or_skip(lambda: run("html-to-pdf", [src], tmp_path / "a.pdf", engine="chromium")[0])
+    doc = fitz.open(out)
+    page = doc[0]
+    assert doc.page_count == 1 and (round(page.rect.width / 72 * 25.4), round(page.rect.height / 72 * 25.4)) == (210, 297)
+    assert _desktop_layout(page)
+    assert page.get_links()[0]["uri"] == "https://example.org/0"
+    # the old behaviour is still one switch away, and it falls into the responsive trap
+    off = fitz.open(run("html-to-pdf", [src], tmp_path / "off.pdf", engine="chromium", sheets="off")[0])
+    assert not _desktop_layout(off[0])
+
+
+def test_html_overflowing_sheet_shrink_or_grow(tmp_path):
+    pytest.importorskip("playwright")
+    src = _sheet_html(tmp_path, paragraphs=12)  # far more text than one A4 page holds
+    shrunk = fitz.open(_chromium_or_skip(lambda: run("html-to-pdf", [src], tmp_path / "s.pdf", engine="chromium")[0]))
+    assert shrunk.page_count == 1 and round(shrunk[0].rect.height / 72 * 25.4) == 297
+    assert _desktop_layout(shrunk[0]) and shrunk[0].get_links()[0]["uri"] == "https://example.org/0"
+    grown = fitz.open(run("html-to-pdf", [src], tmp_path / "g.pdf", engine="chromium", sheet_fit="grow")[0])
+    assert grown.page_count == 1 and grown[0].rect.height / 72 * 25.4 > 300 and round(grown[0].rect.width / 72 * 25.4) == 210
+
+
+def test_html_several_sheets_and_selector(tmp_path):
+    pytest.importorskip("playwright")
+    src = _sheet_html(tmp_path, paragraphs=2, sheets=3)
+    doc = fitz.open(_chromium_or_skip(lambda: run("html-to-pdf", [src], tmp_path / "m.pdf", engine="chromium")[0]))
+    assert doc.page_count == 3 and all(_desktop_layout(doc[i], i) for i in range(3))
+    by_selector = fitz.open(run("html-to-pdf", [src], tmp_path / "sel.pdf", engine="chromium", sheets=".sheet")[0])
+    assert by_selector.page_count == 3
+    with pytest.raises(ToolError, match="no element matches"):
+        run("html-to-pdf", [src], tmp_path / "x.pdf", engine="chromium", sheets=".missing")
